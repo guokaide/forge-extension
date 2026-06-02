@@ -1,0 +1,61 @@
+import { getState, getThreshold, getUnlockWorkNeeded, getFullUnlockWorkRemaining } from '../shared/store.js';
+
+function fmt(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = Math.ceil(min % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+async function render() {
+  const state = await getState();
+  const { entertainmentTime, workTime } = state.today;
+  const unlockNeeded = getUnlockWorkNeeded(state);
+  const fullRemaining = getFullUnlockWorkRemaining(state);
+  const pct = entertainmentTime > 0 ? Math.round(Math.min(workTime / entertainmentTime, 1) * 100) : 0;
+
+  const $title = document.getElementById('title')!;
+  const $msg = document.getElementById('message')!;
+  const $progress = document.getElementById('progress')!;
+  const $plan = document.getElementById('plan')!;
+
+  let blockedSite = '';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get('from');
+    if (from) blockedSite = new URL(from).hostname;
+  } catch {}
+  if (!blockedSite) {
+    const referrer = document.referrer;
+    try { if (referrer) blockedSite = new URL(referrer).hostname; } catch {}
+  }
+
+  $title.textContent = '先去工作吧';
+
+  const siteInfo = blockedSite && state.today.siteTime[blockedSite]
+    ? `你今天已在 ${blockedSite} 上花了 ${fmt(Math.floor(state.today.siteTime[blockedSite] / 60))}`
+    : `今日娱乐已达 ${fmt(entertainmentTime)}`;
+  $msg.textContent = siteInfo;
+
+  if (state.today.plan) {
+    $plan.innerHTML = `<div class="plan-label">今日计划</div><div class="plan-text">${state.today.plan}</div>`;
+  } else {
+    $plan.innerHTML = '';
+  }
+
+  $progress.innerHTML = `
+    <div class="progress-info">还需工作 ${fmt(unlockNeeded)} 解锁</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="progress-info sub">或工作满 ${fmt(state.settings.fullUnlockWork)} 解锁全天（还需 ${fmt(fullRemaining)}）</div>
+  `;
+
+  if (!state.today.locked) {
+    $title.textContent = '已解锁';
+    $msg.textContent = '你可以继续浏览了';
+    $progress.innerHTML = '';
+  }
+}
+
+document.getElementById('btn-back')!.addEventListener('click', () => history.back());
+
+render();
+setInterval(render, 5000);

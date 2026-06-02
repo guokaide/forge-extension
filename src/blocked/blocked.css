@@ -1,0 +1,93 @@
+:root {
+  --ink: #1a1613;
+  --paper: #f8f5f0;
+  --warm-gray: #e8e2da;
+  --muted: #9a918a;
+  --card-bg: #fffdf9;
+  --accent-sage: #5a7a62;
+  --accent-amber: #c8713a;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 400px;
+  padding: 40px;
+}
+
+.icon { font-size: 64px; margin-bottom: 24px; }
+
+h1 {
+  font-family: 'Newsreader', serif;
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--ink);
+  margin-bottom: 12px;
+  letter-spacing: -0.3px;
+}
+
+p { font-size: 16px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+
+.plan-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.plan-text { font-size: 15px; color: var(--ink); margin-bottom: 24px; }
+
+.progress-info { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+
+.progress-bar {
+  height: 8px;
+  background: var(--warm-gray);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent-sage);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-info.sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 12px 32px;
+  background: var(--accent-sage);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  font-family: inherit;
+}
+.btn:hover { opacity: 0.85; }

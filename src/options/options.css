@@ -1,0 +1,112 @@
+:root {
+  --ink: #1a1613;
+  --paper: #f8f5f0;
+  --warm-gray: #e8e2da;
+  --muted: #9a918a;
+  --card-bg: #fffdf9;
+  --accent-sage: #5a7a62;
+  --accent-amber: #c8713a;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 48px 20px;
+}
+
+h1 {
+  font-family: 'Newsreader', serif;
+  font-size: 24px;
+  font-weight: 300;
+  color: var(--ink);
+  margin-bottom: 32px;
+  letter-spacing: -0.3px;
+}
+
+.section { margin-bottom: 28px; }
+
+h2 {
+  font-family: 'Newsreader', serif;
+  font-size: 16px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.desc { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+
+.goal-row { display: flex; align-items: center; gap: 8px; }
+
+input[type="number"] {
+  width: 100px;
+  padding: 8px 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--warm-gray);
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 16px;
+  outline: none;
+  font-family: inherit;
+}
+input[type="number"]:focus { border-color: var(--accent-amber); }
+
+.unit { font-size: 14px; color: var(--muted); }
+
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--warm-gray);
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  font-family: monospace;
+}
+textarea:focus { border-color: var(--accent-amber); }
+
+.btn {
+  padding: 10px 24px;
+  background: var(--accent-sage);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  font-family: inherit;
+}
+.btn:hover { opacity: 0.85; }
+
+.msg {
+  margin-left: 12px;
+  font-size: 14px;
+  color: var(--accent-sage);
+}
