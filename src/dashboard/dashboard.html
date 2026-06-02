@@ -2,35 +2,32 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
   <div class="container">
-    <h1>⚒ Forge 数据面板</h1>
+    <header class="page-header">
+      <div class="eyebrow">Forge</div>
+      <h1>统计</h1>
+      <p>专注力与浏览记录</p>
+    </header>
 
-    <div class="cards">
-      <div class="card streak-card">
-        <div class="card-value" id="streak">0</div>
-        <div class="card-label">天连续达标</div>
-      </div>
-      <div class="card today-card">
-        <div class="card-value" id="ratio">-</div>
-        <div class="card-label">今日工作/娱乐比</div>
-      </div>
-    </div>
+    <div id="streak-summary"></div>
 
     <div class="section">
-      <h2>今日概览</h2>
+      <div class="section-header"><h2>今日概览</h2><div class="section-line"></div></div>
       <div id="today-stats" class="today-stats"></div>
     </div>
 
     <div class="section">
-      <h2>最近 7 天</h2>
+      <div class="section-header"><h2>最近 7 天</h2><div class="section-line"></div></div>
       <div id="chart" class="chart"></div>
     </div>
 
     <div class="section">
-      <h2>今日网站用时</h2>
+      <div class="section-header"><h2>今日网站用时</h2><div class="section-line"></div></div>
       <div id="site-time" class="site-time"></div>
     </div>
   </div>

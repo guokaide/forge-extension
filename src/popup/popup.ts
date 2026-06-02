@@ -6,6 +6,7 @@ import {
 function fmt(min: number): string {
   const h = Math.floor(min / 60);
   const m = Math.ceil(min % 60);
+  if (h > 0 && m === 0) return `${h}h`;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
@@ -17,14 +18,23 @@ async function render() {
   const threshold = getThreshold(state);
   const streak = getStreak(state);
   const { entertainmentTime, workTime, dayUnlocked, locked } = state.today;
+  const fullUnlock = state.settings.fullUnlockWork;
 
   if (dayUnlocked) {
     $status.innerHTML = `
-      <div class="status-label status-ok">今日已达标，自由时间</div>
-      <div class="stats">
-        <span class="stat-work">工作 ${fmt(workTime)}</span>
-        <span class="stat-sep">&middot;</span>
-        <span class="stat-play">娱乐 ${fmt(entertainmentTime)}</span>
+      <div class="forge-card unlocked">
+        <div class="card-top">
+          <div class="status-icon check">✓</div>
+          <div>
+            <div class="card-eyebrow">今日已达标</div>
+            <div class="hero-value">${fmt(workTime)}</div>
+            <div class="card-subtitle">自由时间</div>
+          </div>
+        </div>
+        <div class="summary-row">
+          <span>今日娱乐</span>
+          <strong>${fmt(entertainmentTime)}</strong>
+        </div>
       </div>`;
   } else if (locked) {
     const unlockNeeded = getUnlockWorkNeeded(state);
@@ -32,33 +42,50 @@ async function render() {
     const pct = entertainmentTime > 0 ? Math.round(Math.min(workTime / entertainmentTime, 1) * 100) : 0;
 
     $status.innerHTML = `
-      <div class="status-label status-locked">娱乐时间已用完</div>
-      <div class="stats">
-        <span class="stat-play">娱乐 ${fmt(entertainmentTime)}</span>
-        <span class="stat-sep">&middot;</span>
-        <span class="stat-work">工作 ${fmt(workTime)}</span>
-      </div>
-      <div class="progress-label">还需工作 ${fmt(unlockNeeded)} 解锁</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      <div class="hint">或工作满 ${fmt(state.settings.fullUnlockWork)} 解锁全天（还需 ${fmt(fullRemaining)}）</div>`;
+      <div class="forge-card locked">
+        <div class="card-top">
+          <div class="status-icon lock">!</div>
+          <div>
+            <div class="card-eyebrow">娱乐已锁定</div>
+            <div class="hero-value">${fmt(unlockNeeded)}</div>
+            <div class="card-subtitle">还需工作时间</div>
+          </div>
+        </div>
+        <div class="summary-row">
+          <span>解锁进度</span>
+          <strong>${pct}%</strong>
+        </div>
+        <div class="progress-track locked"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="card-hint">或工作满 ${fmt(fullUnlock)} 解锁全天，还需 ${fmt(fullRemaining)}</div>
+      </div>`;
   } else {
     const remaining = Math.max(0, threshold - entertainmentTime);
-    const pct = Math.round((entertainmentTime / threshold) * 100);
+    const entertainmentPct = Math.round(Math.min(entertainmentTime / threshold, 1) * 100);
+    const workPct = fullUnlock > 0 ? Math.round(Math.min(workTime / fullUnlock, 1) * 100) : 0;
     const fullRemaining = getFullUnlockWorkRemaining(state);
 
     $status.innerHTML = `
-      <div class="stats">
-        <span class="stat-play">娱乐 ${fmt(entertainmentTime)} / ${fmt(threshold)}</span>
-      </div>
-      <div class="progress-bar"><div class="progress-fill play" style="width:${pct}%"></div></div>
-      <div class="stats" style="margin-top:8px">
-        <span class="stat-work">工作 ${fmt(workTime)}</span>
-        ${fullRemaining > 0 ? `<span class="stat-sep">&middot;</span><span class="hint">距全天解锁 ${fmt(fullRemaining)}</span>` : ''}
+      <div class="forge-card normal">
+        <div class="card-top">
+          <div>
+            <div class="card-eyebrow">今日工作</div>
+            <div class="hero-value">${fmt(workTime)}</div>
+            <div class="card-subtitle">距离全天解锁还需 ${fmt(fullRemaining)}</div>
+          </div>
+          <div class="progress-ring" style="--progress:${workPct * 3.6}deg">
+            <span>${workPct}%</span>
+          </div>
+        </div>
+        <div class="summary-row">
+          <span>娱乐剩余</span>
+          <strong>${fmt(remaining)}</strong>
+        </div>
+        <div class="progress-track"><div class="progress-fill amber" style="width:${entertainmentPct}%"></div></div>
       </div>`;
   }
 
   let footerHtml = '';
-  if (streak > 0) footerHtml += `<span class="stat-streak">连续 ${streak} 天达标</span>`;
+  if (streak > 0) footerHtml += `<span class="stat-streak">${streak} 天连续达标</span>`;
   if (state.penalty > 0) footerHtml += `${footerHtml ? '<span class="stat-sep">&middot;</span>' : ''}<span class="stat-penalty">惩罚 -${state.penalty}m</span>`;
   $footer.innerHTML = footerHtml;
 }

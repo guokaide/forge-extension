@@ -15,15 +15,29 @@ async function render() {
   const threshold = getThreshold(state);
   const { workTime, entertainmentTime } = state.today;
   const today = state.today.date;
+  const ratioText = entertainmentTime > 0
+    ? `${(workTime / entertainmentTime).toFixed(1)} : 1`
+    : (workTime > 0 ? '∞' : '-');
+  const goalRemaining = Math.max(0, state.settings.fullUnlockWork - workTime);
+  const goalPct = state.settings.fullUnlockWork > 0
+    ? Math.round(Math.min(workTime / state.settings.fullUnlockWork, 1) * 100)
+    : 0;
+  const streakHint = goalRemaining > 0
+    ? `今天再工作 ${fmt(goalRemaining)}，延续连续记录`
+    : '今日目标已完成，连续记录已延续';
 
-  document.getElementById('streak')!.textContent = String(streak);
-
-  if (entertainmentTime > 0) {
-    const ratio = (workTime / entertainmentTime).toFixed(1);
-    document.getElementById('ratio')!.textContent = `${ratio} : 1`;
-  } else {
-    document.getElementById('ratio')!.textContent = workTime > 0 ? '∞' : '-';
-  }
+  document.getElementById('streak-summary')!.innerHTML = `
+    <div class="streak-score">
+      <div class="streak-value">${streak}</div>
+      <div class="streak-label">天连续达标</div>
+    </div>
+    <div class="streak-progress">
+      <div class="streak-copy">
+        <span>${streakHint}</span>
+        <span>${fmt(workTime)} / ${fmt(state.settings.fullUnlockWork)}</span>
+      </div>
+      <div class="streak-track"><div class="streak-fill" style="width:${goalPct}%"></div></div>
+    </div>`;
 
   const $today = document.getElementById('today-stats')!;
   $today.innerHTML = `
@@ -36,8 +50,12 @@ async function render() {
       <div class="today-stat-value play">${fmt(entertainmentTime)}</div>
     </div>
     <div>
-      <div class="today-stat-label">阈值</div>
+      <div class="today-stat-label">余额</div>
       <div class="today-stat-value credit">${fmt(threshold)}</div>
+    </div>
+    <div>
+      <div class="today-stat-label">工作/娱乐比</div>
+      <div class="today-stat-value ratio">${ratioText}</div>
     </div>
     ${state.penalty > 0 ? `<div>
       <div class="today-stat-label">惩罚</div>
@@ -48,39 +66,36 @@ async function render() {
   const $chart = document.getElementById('chart')!;
   if (history.length === 0) {
     $chart.innerHTML = '<div class="empty-msg">还没有数据</div>';
-    return;
+  } else {
+    const maxMin = Math.max(
+      ...history.map(d => Math.max(d.workTime || 0, d.entertainmentTime || 0)),
+      workTime, entertainmentTime, state.settings.fullUnlockWork,
+    );
+    const barScale = maxMin > 0 ? 100 / maxMin : 0;
+
+    $chart.innerHTML = history.map(day => {
+      const isToday = day.date === today;
+      const w = isToday ? workTime : (day.workTime || 0);
+      const e = isToday ? entertainmentTime : (day.entertainmentTime || 0);
+      const dateLabel = isToday ? '今天' : day.date.slice(5);
+      const goalTag = w >= state.settings.fullUnlockWork ? '<span class="chart-goal">✓</span>' : '';
+
+      return `
+        <div class="chart-row">
+          <div class="chart-date ${isToday ? 'today' : ''}">${dateLabel}</div>
+          <div class="chart-bars">
+            <div class="chart-bar-row">
+              <div class="chart-bar work" style="width:${Math.max(w * barScale, 0.5)}%"></div>
+              <span class="chart-bar-label">${fmt(w)}${goalTag}</span>
+            </div>
+            <div class="chart-bar-row">
+              <div class="chart-bar play" style="width:${Math.max(e * barScale, 0.5)}%"></div>
+              <span class="chart-bar-label">${fmt(e)}</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
   }
-
-  const maxMin = Math.max(
-    ...history.map(d => Math.max(d.workTime || 0, d.entertainmentTime || 0)),
-    workTime, entertainmentTime, state.settings.fullUnlockWork,
-  );
-
-  const barScale = maxMin > 0 ? 100 / maxMin : 0;
-
-  $chart.innerHTML = history.map(day => {
-    const isToday = day.date === today;
-    const w = isToday ? workTime : (day.workTime || 0);
-    const e = isToday ? entertainmentTime : (day.entertainmentTime || 0);
-    const dateLabel = isToday ? '今天' : day.date.slice(5);
-    const goalTag = w >= state.settings.fullUnlockWork ? '<span class="chart-goal">✓</span>' : '';
-
-    return `
-      <div class="chart-row">
-        <div class="chart-date ${isToday ? 'today' : ''}">${dateLabel}</div>
-        <div class="chart-bars">
-          <div class="chart-bar-row">
-            <div class="chart-bar work" style="width:${Math.max(w * barScale, 0.5)}%"></div>
-            <span class="chart-bar-label">${fmt(w)}${goalTag}</span>
-          </div>
-          <div class="chart-bar-row">
-            <div class="chart-bar play" style="width:${Math.max(e * barScale, 0.5)}%"></div>
-            <span class="chart-bar-label">${fmt(e)}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
 
   renderSiteTime(state.today.siteTime);
 }
