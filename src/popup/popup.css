@@ -3,11 +3,9 @@
   --paper: #f8f5f0;
   --warm-gray: #e8e2da;
   --muted: #9a918a;
-  --card-bg: #fffdf9;
   --accent-sage: #5a7a62;
   --accent-amber: #c8713a;
   --accent-rose: #b35a5a;
-  --status-cooling: #b8892e;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -24,44 +22,9 @@ body {
 header { text-align: center; margin-bottom: 12px; }
 header h1 { font-size: 18px; color: var(--ink); font-weight: 600; }
 
-#plan { margin-bottom: 12px; }
-
-.plan-input {
-  width: 100%;
-  padding: 8px 10px;
-  background: var(--card-bg);
-  border: 1px solid var(--warm-gray);
-  border-radius: 6px;
-  color: var(--ink);
-  font-size: 13px;
-  outline: none;
-  font-family: inherit;
-}
-.plan-input:focus { border-color: var(--accent-amber); }
-.plan-input::placeholder { color: var(--muted); }
-
-.plan-display {
-  font-size: 13px;
-  color: var(--muted);
-  padding: 4px 0;
-  cursor: pointer;
-}
-.plan-display:hover { color: var(--ink); }
-.plan-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-
 #status { text-align: center; margin-bottom: 12px; }
 
 .status-label { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
-
-.timer {
-  font-size: 36px;
-  font-weight: 300;
-  margin-bottom: 10px;
-  font-variant-numeric: tabular-nums;
-}
-.timer.work { color: var(--accent-sage); }
-.timer.play { color: var(--accent-amber); }
-.timer.paused { color: var(--status-cooling); }
 
 .progress-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 
@@ -81,31 +44,6 @@ header h1 { font-size: 18px; color: var(--ink); font-weight: 600; }
 .progress-fill.play { background: var(--accent-amber); }
 
 .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
-.hint.debt { color: var(--accent-rose); }
-
-#actions { margin-bottom: 8px; }
-
-.btn-row { display: flex; gap: 8px; }
-
-.btn {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  font-family: inherit;
-}
-.btn:hover { opacity: 0.85; }
-.btn:active { opacity: 0.75; }
-.btn-work { background: var(--accent-sage); color: #fff; }
-.btn-play { background: var(--accent-amber); color: #fff; }
-.btn-stop { background: var(--accent-rose); color: #fff; }
-.btn-pause { background: var(--status-cooling); color: #fff; }
-.btn-resume { background: var(--accent-sage); color: #fff; }
-
 .stats {
   display: flex;
   align-items: center;

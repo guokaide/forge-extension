@@ -16,7 +16,6 @@ async function render() {
   const $title = document.getElementById('title')!;
   const $msg = document.getElementById('message')!;
   const $progress = document.getElementById('progress')!;
-  const $plan = document.getElementById('plan')!;
 
   let blockedSite = '';
   try {
@@ -35,12 +34,6 @@ async function render() {
     ? `你今天已在 ${blockedSite} 上花了 ${fmt(Math.floor(state.today.siteTime[blockedSite] / 60))}`
     : `今日娱乐已达 ${fmt(entertainmentTime)}`;
   $msg.textContent = siteInfo;
-
-  if (state.today.plan) {
-    $plan.innerHTML = `<div class="plan-label">今日计划</div><div class="plan-text">${state.today.plan}</div>`;
-  } else {
-    $plan.innerHTML = '';
-  }
 
   $progress.innerHTML = `
     <div class="progress-info">还需工作 ${fmt(unlockNeeded)} 解锁</div>

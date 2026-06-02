@@ -14,7 +14,7 @@ async function render() {
   const history = getHistory(state, 7);
   const threshold = getThreshold(state);
   const { workTime, entertainmentTime } = state.today;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = state.today.date;
 
   document.getElementById('streak')!.textContent = String(streak);
 

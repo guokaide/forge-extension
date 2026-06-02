@@ -1,4 +1,4 @@
-import { getState, saveState, extractDomain } from '../shared/store.js';
+import { getState, saveState, extractDomain, reconcileLockState } from '../shared/store.js';
 
 async function load() {
   const state = await getState();
@@ -17,6 +17,7 @@ document.getElementById('save')!.addEventListener('click', async () => {
   if (threshold >= 15 && threshold <= 180) state.settings.baseThreshold = threshold;
   if (fullUnlock >= 60 && fullUnlock <= 480) state.settings.fullUnlockWork = fullUnlock;
   state.settings.blockedSites = sites;
+  reconcileLockState(state);
   await saveState(state);
   chrome.runtime.sendMessage({ type: 'stateChanged' });
 

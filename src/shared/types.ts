@@ -5,7 +5,6 @@ export interface DayData {
   siteTime: Record<string, number>;
   locked: boolean;
   dayUnlocked: boolean;
-  plan?: string;
 }
 
 export interface ForgeSettings {

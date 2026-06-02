@@ -1,4 +1,6 @@
-import { getState, saveState, addEntertainmentTime, addWorkTime, addSiteTime, getThreshold } from './shared/store.js';
+import {
+  getState, addEntertainmentTime, addWorkTime, addSiteTime, getThreshold, getDateKey,
+} from './shared/store.js';
 
 // ================================================================
 // BLOCKING RULES
@@ -74,10 +76,15 @@ async function updateBadge(): Promise<void> {
 // SITE TIME TRACKING
 // ================================================================
 
-let currentHost: string | null = null;
-let browserFocused = true;
-let userIdle = false;
-let lastTick = Date.now();
+interface SiteTrackingState {
+  currentHost: string | null;
+  browserFocused: boolean;
+  userIdle: boolean;
+  lastTick: number;
+}
+
+const TRACKING_KEY = 'forgeSiteTracking';
+const MAX_TRACKED_INTERVAL_MS = 90 * 1000;
 
 function extractHost(url: string | undefined): string | null {
   if (!url) return null;
@@ -92,40 +99,94 @@ function isBlockedHost(hostname: string, blockedSites: string[]): boolean {
   return blockedSites.some(site => hostname === site || hostname.endsWith('.' + site));
 }
 
-async function flushSiteTime(): Promise<void> {
-  const now = Date.now();
-  const elapsed = Math.round((now - lastTick) / 1000);
-  lastTick = now;
-  if (currentHost && elapsed > 0 && elapsed < 300) {
-    await addSiteTime(currentHost, elapsed);
+function freshTrackingState(): SiteTrackingState {
+  return {
+    currentHost: null,
+    browserFocused: false,
+    userIdle: false,
+    lastTick: Date.now(),
+  };
+}
+
+async function getTrackingState(): Promise<SiteTrackingState> {
+  const result = await chrome.storage.session.get(TRACKING_KEY);
+  const tracking = result[TRACKING_KEY] as Partial<SiteTrackingState> | undefined;
+  if (!tracking || typeof tracking.lastTick !== 'number') return freshTrackingState();
+  return {
+    currentHost: typeof tracking.currentHost === 'string' ? tracking.currentHost : null,
+    browserFocused: tracking.browserFocused === true,
+    userIdle: tracking.userIdle === true,
+    lastTick: tracking.lastTick,
+  };
+}
+
+async function saveTrackingState(tracking: SiteTrackingState): Promise<void> {
+  await chrome.storage.session.set({ [TRACKING_KEY]: tracking });
+}
+
+async function addSiteInterval(hostname: string, startedAt: number, endedAt: number): Promise<void> {
+  let cursor = Math.max(startedAt, endedAt - MAX_TRACKED_INTERVAL_MS);
+  while (cursor < endedAt) {
+    const date = new Date(cursor);
+    const nextMidnight = new Date(date);
+    nextMidnight.setHours(24, 0, 0, 0);
+    const segmentEnd = Math.min(endedAt, nextMidnight.getTime());
+    const seconds = Math.floor((segmentEnd - cursor) / 1000);
+    if (seconds > 0) await addSiteTime(hostname, seconds, getDateKey(date));
+    cursor = segmentEnd;
   }
 }
 
-async function updateCurrentHost(): Promise<void> {
+async function flushSiteTime(tracking: SiteTrackingState, now: number = Date.now()): Promise<void> {
+  if (tracking.currentHost && tracking.browserFocused && !tracking.userIdle && now > tracking.lastTick) {
+    await addSiteInterval(tracking.currentHost, tracking.lastTick, now);
+  }
+  tracking.lastTick = now;
+}
+
+async function getBrowserActivity(): Promise<{ browserFocused: boolean; currentHost: string | null }> {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    const newHost = extractHost(tab?.url);
-    if (newHost !== currentHost) {
-      await flushSiteTime();
-      currentHost = newHost;
+    const window = await chrome.windows.getLastFocused();
+    if (!window.focused || window.id === undefined) {
+      return { browserFocused: false, currentHost: null };
     }
-  } catch {}
+    const [tab] = await chrome.tabs.query({ active: true, windowId: window.id });
+    return { browserFocused: true, currentHost: extractHost(tab?.url) };
+  } catch {
+    return { browserFocused: false, currentHost: null };
+  }
 }
 
-chrome.tabs.onActivated.addListener(() => updateCurrentHost());
+async function syncActivityNow(idleState?: chrome.idle.IdleState): Promise<SiteTrackingState> {
+  const tracking = await getTrackingState();
+  await flushSiteTime(tracking);
+
+  const activity = await getBrowserActivity();
+  tracking.browserFocused = activity.browserFocused;
+  tracking.currentHost = activity.currentHost;
+  tracking.userIdle = idleState
+    ? idleState !== 'active'
+    : await chrome.idle.queryState(600) !== 'active';
+
+  await saveTrackingState(tracking);
+  return tracking;
+}
+
+let activitySyncQueue: Promise<void> = Promise.resolve();
+
+function syncActivity(idleState?: chrome.idle.IdleState): Promise<SiteTrackingState> {
+  const sync = activitySyncQueue
+    .catch(() => undefined)
+    .then(() => syncActivityNow(idleState));
+  activitySyncQueue = sync.then(() => undefined, () => undefined);
+  return sync;
+}
+
+chrome.tabs.onActivated.addListener(() => { void syncActivity(); });
 chrome.tabs.onUpdated.addListener((_tabId, info) => {
-  if (info.url) updateCurrentHost();
+  if (info.url) void syncActivity();
 });
-chrome.windows.onFocusChanged.addListener((windowId) => {
-  if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    flushSiteTime();
-    currentHost = null;
-    browserFocused = false;
-  } else {
-    browserFocused = true;
-    updateCurrentHost();
-  }
-});
+chrome.windows.onFocusChanged.addListener(() => { void syncActivity(); });
 
 // ================================================================
 // IDLE DETECTION
@@ -133,11 +194,7 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
 
 chrome.idle.setDetectionInterval(600);
 chrome.idle.onStateChanged.addListener((newState) => {
-  if (newState === 'idle' || newState === 'locked') {
-    userIdle = true;
-  } else {
-    userIdle = false;
-  }
+  void syncActivity(newState);
 });
 
 // ================================================================
@@ -145,7 +202,9 @@ chrome.idle.onStateChanged.addListener((newState) => {
 // ================================================================
 
 async function tick(): Promise<void> {
-  if (userIdle) {
+  const tracking = await syncActivity();
+
+  if (tracking.userIdle) {
     await updateBadge();
     return;
   }
@@ -153,21 +212,19 @@ async function tick(): Promise<void> {
   const state = await getState();
 
   if (state.today.dayUnlocked) {
-    await flushSiteTime();
     await syncBlocking();
     await updateBadge();
     return;
   }
 
-  if (!browserFocused) {
+  if (!tracking.browserFocused) {
     await addWorkTime(1);
-  } else if (currentHost && isBlockedHost(currentHost, state.settings.blockedSites)) {
+  } else if (tracking.currentHost && isBlockedHost(tracking.currentHost, state.settings.blockedSites)) {
     await addEntertainmentTime(1);
   } else {
     await addWorkTime(1);
   }
 
-  await flushSiteTime();
   await syncBlocking();
   await updateBadge();
 }
@@ -182,20 +239,22 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('forge-tick', { periodInMinutes: 1 });
-  syncBlocking();
-  updateBadge();
+  void syncActivity();
+  void syncBlocking();
+  void updateBadge();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   chrome.alarms.create('forge-tick', { periodInMinutes: 1 });
-  syncBlocking();
-  updateBadge();
+  void syncActivity();
+  void syncBlocking();
+  void updateBadge();
 });
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'stateChanged') {
-    syncBlocking();
-    updateBadge();
+    void syncBlocking();
+    void updateBadge();
   }
   return false;
 });

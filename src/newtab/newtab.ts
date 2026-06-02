@@ -1,6 +1,6 @@
 import {
   getState, getThreshold, getStreak, getHistory, saveState,
-  getUnlockWorkNeeded, getFullUnlockWorkRemaining, extractDomain,
+  getUnlockWorkNeeded, getFullUnlockWorkRemaining, extractDomain, reconcileLockState,
 } from '../shared/store.js';
 
 // ================================================================
@@ -8,17 +8,13 @@ import {
 // ================================================================
 
 interface TabInfo {
-  id: number;
   url: string;
   title: string;
-  windowId: number;
-  active: boolean;
   isForgeTab: boolean;
 }
 
 interface DomainGroup {
   domain: string;
-  label?: string;
   tabs: TabInfo[];
 }
 
@@ -61,11 +57,8 @@ async function fetchOpenTabs(): Promise<void> {
     const newtabUrl = `chrome-extension://${extensionId}/newtab/newtab.html`;
     const tabs = await chrome.tabs.query({});
     openTabs = tabs.map(t => ({
-      id: t.id!,
       url: t.url || '',
       title: t.title || '',
-      windowId: t.windowId!,
-      active: t.active || false,
       isForgeTab: t.url === newtabUrl || t.url === 'chrome://newtab/',
     }));
   } catch {
@@ -608,19 +601,14 @@ function renderDomainCard(group: DomainGroup): string {
 
   return `
     <div class="mission-card domain-card ${hasDupes ? 'has-amber-bar' : 'has-neutral-bar'}" data-domain-id="${stableId}">
-      <div class="status-bar"></div>
       <div class="mission-content">
         <div class="mission-top">
-          <span class="mission-name">${isLanding ? 'Homepages' : (group.label || friendlyDomain(group.domain))}</span>
+          <span class="mission-name">${isLanding ? 'Homepages' : friendlyDomain(group.domain)}</span>
           ${tabBadge}
           ${dupeBadge}
         </div>
         <div class="mission-pages">${pageChips}</div>
         <div class="actions">${actionsHtml}</div>
-      </div>
-      <div class="mission-meta">
-        <div class="mission-page-count">${tabCount}</div>
-        <div class="mission-page-label">tabs</div>
       </div>
     </div>`;
 }
@@ -763,7 +751,7 @@ async function renderForgeBar(): Promise<void> {
   } else {
     dayUnlockedConfettiFired = false;
     $bar.setAttribute('data-state', 'normal');
-    $headerCount.textContent = `${fmt(workTime)} / ${fmt(fullUnlock)}`;
+    $headerCount.innerHTML = `<span class="forge-header-current">${fmt(workTime)}</span> / ${fmt(fullUnlock)}`;
     const pct = fullUnlock > 0 ? Math.round(Math.min(workTime / fullUnlock, 1) * 100) : 0;
     const remaining = Math.max(0, threshold - entertainmentTime);
     const circumference = 2 * Math.PI * 30;
@@ -1012,12 +1000,12 @@ document.addEventListener('click', async (e) => {
     );
     if (!group) return;
     const urls = group.tabs.map(t => t.url);
-    const useExact = group.domain === '__landing-pages__' || !!group.label;
+    const useExact = group.domain === '__landing-pages__';
     if (useExact) await closeTabsExact(urls); else await closeTabsByUrls(urls);
     if (card) { playCloseSound(); animateCardOut(card); }
     const idx = domainGroups.indexOf(group);
     if (idx !== -1) domainGroups.splice(idx, 1);
-    const groupLabel = group.domain === '__landing-pages__' ? 'Homepages' : (group.label || friendlyDomain(group.domain));
+    const groupLabel = group.domain === '__landing-pages__' ? 'Homepages' : friendlyDomain(group.domain);
     showToast(`Closed ${urls.length} tab${urls.length !== 1 ? 's' : ''} from ${groupLabel}`);
     return;
   }
@@ -1105,11 +1093,18 @@ async function renderDashboardPanel(body: HTMLElement): Promise<void> {
   const history = getHistory(state, 7);
   const threshold = getThreshold(state);
   const { workTime, entertainmentTime } = state.today;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = state.today.date;
 
   const ratioText = entertainmentTime > 0
     ? `${(workTime / entertainmentTime).toFixed(1)} : 1`
     : (workTime > 0 ? '∞' : '-');
+  const goalRemaining = Math.max(0, state.settings.fullUnlockWork - workTime);
+  const goalPct = state.settings.fullUnlockWork > 0
+    ? Math.round(Math.min(workTime / state.settings.fullUnlockWork, 1) * 100)
+    : 0;
+  const streakHint = goalRemaining > 0
+    ? `今天再工作 ${fmt(goalRemaining)}，延续连续记录`
+    : '今日目标已完成，连续记录已延续';
 
   let chartHtml = '';
   if (history.length > 0) {
@@ -1169,14 +1164,17 @@ async function renderDashboardPanel(body: HTMLElement): Promise<void> {
   }
 
   body.innerHTML = `
-    <div class="panel-cards">
-      <div class="panel-card">
-        <div class="panel-card-value amber">${streak}</div>
-        <div class="panel-card-label">天连续达标</div>
+    <div class="panel-streak-summary">
+      <div class="panel-streak-score">
+        <div class="panel-streak-value">${streak}</div>
+        <div class="panel-streak-label">天连续达标</div>
       </div>
-      <div class="panel-card">
-        <div class="panel-card-value amber">${ratioText}</div>
-        <div class="panel-card-label">今日工作/娱乐比</div>
+      <div class="panel-streak-progress">
+        <div class="panel-streak-copy">
+          <span>${streakHint}</span>
+          <span>${fmt(workTime)} / ${fmt(state.settings.fullUnlockWork)}</span>
+        </div>
+        <div class="panel-streak-track"><div class="panel-streak-fill" style="width:${goalPct}%"></div></div>
       </div>
     </div>
 
@@ -1194,6 +1192,10 @@ async function renderDashboardPanel(body: HTMLElement): Promise<void> {
         <div>
           <div class="panel-stat-label">余额</div>
           <div class="panel-stat-value credit">${fmt(threshold)}</div>
+        </div>
+        <div>
+          <div class="panel-stat-label">工作/娱乐比</div>
+          <div class="panel-stat-value ratio">${ratioText}</div>
         </div>
         ${state.penalty > 0 ? `<div>
           <div class="panel-stat-label">惩罚</div>
@@ -1254,19 +1256,10 @@ async function renderSettingsPanel(body: HTMLElement): Promise<void> {
     const sitesVal = [...new Set((document.getElementById('panelBlockedSites') as HTMLTextAreaElement).value
       .split('\n').map(extractDomain).filter(Boolean))];
 
-    if (thresholdVal >= 15) freshState.settings.baseThreshold = thresholdVal;
-    if (fullUnlockVal >= 60) freshState.settings.fullUnlockWork = fullUnlockVal;
+    if (thresholdVal >= 15 && thresholdVal <= 180) freshState.settings.baseThreshold = thresholdVal;
+    if (fullUnlockVal >= 60 && fullUnlockVal <= 480) freshState.settings.fullUnlockWork = fullUnlockVal;
     freshState.settings.blockedSites = sitesVal;
-
-    if (freshState.today.workTime >= freshState.settings.fullUnlockWork) {
-      freshState.today.dayUnlocked = true;
-      freshState.today.locked = false;
-    } else {
-      freshState.today.dayUnlocked = false;
-      const newThreshold = getThreshold(freshState);
-      freshState.today.locked = freshState.today.entertainmentTime >= newThreshold
-        && freshState.today.workTime < freshState.today.entertainmentTime;
-    }
+    reconcileLockState(freshState);
 
     dayUnlockedConfettiFired = false;
     await saveState(freshState);

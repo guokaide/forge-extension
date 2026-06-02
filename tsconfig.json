@@ -3,6 +3,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "types": ["chrome"],
     "strict": true,
     "noEmit": true
   },

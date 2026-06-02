@@ -11,19 +11,12 @@ function fmt(min: number): string {
 
 async function render() {
   const state = await getState();
-  const $plan = document.getElementById('plan')!;
   const $status = document.getElementById('status')!;
   const $footer = document.getElementById('footer')!;
 
   const threshold = getThreshold(state);
   const streak = getStreak(state);
   const { entertainmentTime, workTime, dayUnlocked, locked } = state.today;
-
-  if (state.today.plan) {
-    $plan.innerHTML = `<div class="plan-label">今日计划</div><div class="plan-display">${state.today.plan}</div>`;
-  } else {
-    $plan.innerHTML = '';
-  }
 
   if (dayUnlocked) {
     $status.innerHTML = `

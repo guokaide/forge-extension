@@ -41,7 +41,6 @@ function createIcon(size) {
     for (let x = 0; x < size; x++) {
       const p = off + 1 + x * 4;
       let inside = true;
-      const corners = [[radius, radius], [size - radius - 1, radius], [radius, size - radius - 1], [size - radius - 1, size - radius - 1]];
       if (x < radius && y < radius) inside = Math.hypot(x - radius, y - radius) <= radius;
       else if (x >= size - radius && y < radius) inside = Math.hypot(x - (size - radius - 1), y - radius) <= radius;
       else if (x < radius && y >= size - radius) inside = Math.hypot(x - radius, y - (size - radius - 1)) <= radius;

@@ -1,8 +1,11 @@
 import type { ForgeState, DayData } from './types.js';
 import { DEFAULT_SETTINGS, CURRENT_SCHEMA } from './types.js';
 
-function getToday(): string {
-  return new Date().toISOString().slice(0, 10);
+export function getDateKey(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function freshDay(date: string): DayData {
@@ -19,7 +22,7 @@ function freshDay(date: string): DayData {
 function defaultState(): ForgeState {
   return {
     schemaVersion: CURRENT_SCHEMA,
-    today: freshDay(getToday()),
+    today: freshDay(getDateKey()),
     days: {},
     penalty: 0,
     settings: { ...DEFAULT_SETTINGS },
@@ -44,7 +47,7 @@ function migrateDay(d: any, dateKey: string): DayData {
 function migrate(raw: any): ForgeState {
   const s = raw.settings || {};
   const t = raw.today || {};
-  const today = getToday();
+  const today = getDateKey();
 
   const state: ForgeState = {
     schemaVersion: CURRENT_SCHEMA,
@@ -82,14 +85,16 @@ export async function getState(): Promise<ForgeState> {
     await saveState(state);
   }
 
-  const today = getToday();
+  const today = getDateKey();
   if (state.today.date !== today) {
     state.days[state.today.date] = state.today;
 
-    if (state.today.workTime < state.settings.fullUnlockWork) {
-      state.penalty = Math.min(state.penalty + 15, state.settings.baseThreshold - 15);
-    } else {
-      state.penalty = 0;
+    if (state.today.date < today) {
+      if (state.today.workTime < state.settings.fullUnlockWork) {
+        state.penalty = Math.min(state.penalty + 15, state.settings.baseThreshold - 15);
+      } else {
+        state.penalty = 0;
+      }
     }
 
     state.today = freshDay(today);
@@ -120,9 +125,15 @@ export function getThreshold(state: ForgeState): number {
   return Math.max(15, state.settings.baseThreshold - state.penalty);
 }
 
-export function isLocked(state: ForgeState): boolean {
-  if (state.today.dayUnlocked) return false;
-  return state.today.entertainmentTime >= getThreshold(state)
+export function reconcileLockState(state: ForgeState): void {
+  if (state.today.workTime >= state.settings.fullUnlockWork) {
+    state.today.dayUnlocked = true;
+    state.today.locked = false;
+    return;
+  }
+
+  state.today.dayUnlocked = false;
+  state.today.locked = state.today.entertainmentTime >= getThreshold(state)
     && state.today.workTime < state.today.entertainmentTime;
 }
 
@@ -137,13 +148,7 @@ export function getFullUnlockWorkRemaining(state: ForgeState): number {
 export async function addEntertainmentTime(minutes: number): Promise<ForgeState> {
   const state = await getState();
   state.today.entertainmentTime += minutes;
-
-  const threshold = getThreshold(state);
-  if (!state.today.dayUnlocked && state.today.entertainmentTime >= threshold
-      && state.today.workTime < state.today.entertainmentTime) {
-    state.today.locked = true;
-  }
-
+  reconcileLockState(state);
   await saveState(state);
   return state;
 }
@@ -151,28 +156,18 @@ export async function addEntertainmentTime(minutes: number): Promise<ForgeState>
 export async function addWorkTime(minutes: number): Promise<ForgeState> {
   const state = await getState();
   state.today.workTime += minutes;
-
-  if (state.today.workTime >= state.settings.fullUnlockWork) {
-    state.today.dayUnlocked = true;
-    state.today.locked = false;
-  } else if (state.today.locked && state.today.workTime >= state.today.entertainmentTime) {
-    state.today.locked = false;
-  }
-
+  reconcileLockState(state);
   await saveState(state);
   return state;
 }
 
-export async function addSiteTime(hostname: string, seconds: number): Promise<void> {
+export async function addSiteTime(hostname: string, seconds: number, date: string = getDateKey()): Promise<void> {
+  if (seconds <= 0) return;
   const state = await getState();
-  if (!state.today.siteTime) state.today.siteTime = {};
-  state.today.siteTime[hostname] = (state.today.siteTime[hostname] || 0) + seconds;
-  await saveState(state);
-}
-
-export async function setPlan(plan: string): Promise<void> {
-  const state = await getState();
-  state.today.plan = plan;
+  const day = date === state.today.date ? state.today : state.days[date];
+  if (!day) return;
+  if (!day.siteTime) day.siteTime = {};
+  day.siteTime[hostname] = (day.siteTime[hostname] || 0) + seconds;
   await saveState(state);
 }
 
@@ -181,7 +176,7 @@ export function getHistory(state: ForgeState, count: number = 7): DayData[] {
   for (let i = 0; i < count; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = getDateKey(d);
     if (dateStr === state.today.date) {
       result.push(state.today);
     } else if (state.days[dateStr]) {
@@ -197,7 +192,7 @@ export function getStreak(state: ForgeState): number {
   for (let i = 0; i < 365; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = getDateKey(d);
     let workMin: number;
     if (dateStr === state.today.date) {
       workMin = state.today.workTime;
