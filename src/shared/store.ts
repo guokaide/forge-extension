@@ -125,6 +125,20 @@ export function getThreshold(state: ForgeState): number {
   return Math.max(15, state.settings.baseThreshold - state.penalty);
 }
 
+export function getEntertainmentBalance(state: ForgeState): number {
+  return getThreshold(state) + state.today.workTime - state.today.entertainmentTime;
+}
+
+export function getEntertainmentDebt(state: ForgeState): number {
+  return Math.max(0, 1 - getEntertainmentBalance(state));
+}
+
+export function getEntertainmentUsagePct(state: ForgeState): number {
+  const allowance = getThreshold(state) + state.today.workTime;
+  if (allowance <= 0) return state.today.entertainmentTime > 0 ? 100 : 0;
+  return Math.round(Math.min(state.today.entertainmentTime / allowance, 1) * 100);
+}
+
 export function reconcileLockState(state: ForgeState): void {
   if (state.today.workTime >= state.settings.fullUnlockWork) {
     state.today.dayUnlocked = true;
@@ -133,12 +147,11 @@ export function reconcileLockState(state: ForgeState): void {
   }
 
   state.today.dayUnlocked = false;
-  state.today.locked = state.today.entertainmentTime >= getThreshold(state)
-    && state.today.workTime < state.today.entertainmentTime;
+  state.today.locked = state.today.entertainmentTime > 0 && getEntertainmentBalance(state) <= 0;
 }
 
 export function getUnlockWorkNeeded(state: ForgeState): number {
-  return Math.max(0, state.today.entertainmentTime - state.today.workTime);
+  return getEntertainmentDebt(state);
 }
 
 export function getFullUnlockWorkRemaining(state: ForgeState): number {

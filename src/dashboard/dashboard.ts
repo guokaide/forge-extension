@@ -1,5 +1,5 @@
 import {
-  getState, getHistory, getStreak, getThreshold,
+  getState, getHistory, getStreak, getEntertainmentBalance,
 } from '../shared/store.js';
 
 function fmt(min: number): string {
@@ -12,8 +12,8 @@ async function render() {
   const state = await getState();
   const streak = getStreak(state);
   const history = getHistory(state, 7);
-  const threshold = getThreshold(state);
   const { workTime, entertainmentTime } = state.today;
+  const balance = Math.max(0, getEntertainmentBalance(state));
   const today = state.today.date;
   const ratioText = entertainmentTime > 0
     ? `${(workTime / entertainmentTime).toFixed(1)} : 1`
@@ -51,7 +51,7 @@ async function render() {
     </div>
     <div>
       <div class="today-stat-label">余额</div>
-      <div class="today-stat-value credit">${fmt(threshold)}</div>
+      <div class="today-stat-value credit">${fmt(balance)}</div>
     </div>
     <div>
       <div class="today-stat-label">工作/娱乐比</div>

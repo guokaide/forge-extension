@@ -1,6 +1,6 @@
 import {
-  getState, getThreshold, getUnlockWorkNeeded,
-  getFullUnlockWorkRemaining, getStreak,
+  getState, getUnlockWorkNeeded,
+  getFullUnlockWorkRemaining, getStreak, getEntertainmentBalance, getEntertainmentUsagePct,
 } from '../shared/store.js';
 
 function fmt(min: number): string {
@@ -15,7 +15,6 @@ async function render() {
   const $status = document.getElementById('status')!;
   const $footer = document.getElementById('footer')!;
 
-  const threshold = getThreshold(state);
   const streak = getStreak(state);
   const { entertainmentTime, workTime, dayUnlocked, locked } = state.today;
   const fullUnlock = state.settings.fullUnlockWork;
@@ -39,7 +38,7 @@ async function render() {
   } else if (locked) {
     const unlockNeeded = getUnlockWorkNeeded(state);
     const fullRemaining = getFullUnlockWorkRemaining(state);
-    const pct = entertainmentTime > 0 ? Math.round(Math.min(workTime / entertainmentTime, 1) * 100) : 0;
+    const pct = getEntertainmentUsagePct(state);
 
     $status.innerHTML = `
       <div class="forge-card locked">
@@ -59,13 +58,13 @@ async function render() {
         <div class="card-hint">或工作满 ${fmt(fullUnlock)} 解锁全天，还需 ${fmt(fullRemaining)}</div>
       </div>`;
   } else {
-    const remaining = Math.max(0, threshold - entertainmentTime);
-    const entertainmentPct = Math.round(Math.min(entertainmentTime / threshold, 1) * 100);
+    const balance = Math.max(0, getEntertainmentBalance(state));
+    const entertainmentPct = getEntertainmentUsagePct(state);
     const workPct = fullUnlock > 0 ? Math.round(Math.min(workTime / fullUnlock, 1) * 100) : 0;
     const fullRemaining = getFullUnlockWorkRemaining(state);
 
     $status.innerHTML = `
-      <div class="forge-card normal">
+      <div class="forge-card normal${balance < 15 && entertainmentTime > 0 ? ' low' : ''}">
         <div class="card-top">
           <div>
             <div class="card-eyebrow">今日工作</div>
@@ -77,10 +76,9 @@ async function render() {
           </div>
         </div>
         <div class="summary-row">
-          <span>娱乐剩余</span>
-          <strong>${fmt(remaining)}</strong>
+          <span>娱乐余额 <strong>${fmt(balance)}</strong> · 已娱乐 ${fmt(entertainmentTime)}</span>
         </div>
-        <div class="progress-track"><div class="progress-fill amber" style="width:${entertainmentPct}%"></div></div>
+        <div class="progress-track"><div class="progress-fill play" style="width:${entertainmentPct}%"></div></div>
       </div>`;
   }
 

@@ -1,5 +1,5 @@
 import {
-  getState, addEntertainmentTime, addWorkTime, addSiteTime, getThreshold, getDateKey,
+  getState, addEntertainmentTime, addWorkTime, addSiteTime, getEntertainmentBalance, getDateKey,
 } from './shared/store.js';
 
 // ================================================================
@@ -61,10 +61,9 @@ async function updateBadge(): Promise<void> {
     await chrome.action.setBadgeText({ text: '!' });
     await chrome.action.setBadgeBackgroundColor({ color: '#b35a5a' });
   } else {
-    const threshold = getThreshold(state);
-    const remaining = Math.max(0, threshold - state.today.entertainmentTime);
-    if (remaining > 0 && state.today.entertainmentTime > 0) {
-      await chrome.action.setBadgeText({ text: `${remaining}m` });
+    const balance = Math.max(0, getEntertainmentBalance(state));
+    if (balance > 0 && state.today.entertainmentTime > 0) {
+      await chrome.action.setBadgeText({ text: `${balance}m` });
       await chrome.action.setBadgeBackgroundColor({ color: '#5a7a62' });
     } else {
       await chrome.action.setBadgeText({ text: '' });

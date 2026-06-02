@@ -1,4 +1,4 @@
-import { getState, getThreshold, getUnlockWorkNeeded, getFullUnlockWorkRemaining } from '../shared/store.js';
+import { getState, getUnlockWorkNeeded, getFullUnlockWorkRemaining, getEntertainmentUsagePct } from '../shared/store.js';
 
 function fmt(min: number): string {
   const h = Math.floor(min / 60);
@@ -11,7 +11,7 @@ async function render() {
   const { entertainmentTime, workTime } = state.today;
   const unlockNeeded = getUnlockWorkNeeded(state);
   const fullRemaining = getFullUnlockWorkRemaining(state);
-  const pct = entertainmentTime > 0 ? Math.round(Math.min(workTime / entertainmentTime, 1) * 100) : 0;
+  const pct = getEntertainmentUsagePct(state);
 
   const $title = document.getElementById('title')!;
   const $msg = document.getElementById('message')!;

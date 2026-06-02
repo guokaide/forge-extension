@@ -1,6 +1,7 @@
 import {
-  getState, getThreshold, getStreak, getHistory, saveState,
+  getState, getStreak, getHistory, saveState,
   getUnlockWorkNeeded, getFullUnlockWorkRemaining, extractDomain, reconcileLockState,
+  getEntertainmentBalance, getEntertainmentUsagePct,
 } from '../shared/store.js';
 
 // ================================================================
@@ -694,7 +695,6 @@ async function renderForgeBar(): Promise<void> {
   const $meta = document.getElementById('forgeMeta')!;
   const $headerCount = document.getElementById('forgeHeaderCount')!;
 
-  const threshold = getThreshold(state);
   const entertainmentTime = state.today.entertainmentTime || 0;
   const workTime = state.today.workTime || 0;
   const { locked, dayUnlocked } = state.today;
@@ -730,7 +730,7 @@ async function renderForgeBar(): Promise<void> {
     $headerCount.textContent = '已锁定';
     const unlockNeeded = getUnlockWorkNeeded(state);
     const fullRemaining = getFullUnlockWorkRemaining(state);
-    const pct = entertainmentTime > 0 ? Math.round(Math.min(workTime / entertainmentTime, 1) * 100) : 0;
+    const pct = getEntertainmentUsagePct(state);
 
     $status.innerHTML = `
       <div class="forge-main-row">
@@ -753,10 +753,11 @@ async function renderForgeBar(): Promise<void> {
     $bar.setAttribute('data-state', 'normal');
     $headerCount.innerHTML = `<span class="forge-header-current">${fmt(workTime)}</span> / ${fmt(fullUnlock)}`;
     const pct = fullUnlock > 0 ? Math.round(Math.min(workTime / fullUnlock, 1) * 100) : 0;
-    const remaining = Math.max(0, threshold - entertainmentTime);
+    const balance = Math.max(0, getEntertainmentBalance(state));
+    const entertainmentPct = getEntertainmentUsagePct(state);
     const circumference = 2 * Math.PI * 30;
     const offset = circumference * (1 - pct / 100);
-    const lowWarning = remaining < 15 && entertainmentTime > 0;
+    const lowWarning = balance < 15 && entertainmentTime > 0;
 
     $status.innerHTML = `
       <div class="forge-main-row">
@@ -777,9 +778,9 @@ async function renderForgeBar(): Promise<void> {
       ${entertainmentTime > 0 ? `
       <div class="forge-entertainment-strip${lowWarning ? ' low' : ''}">
         <div class="forge-strip-track">
-          <div class="forge-strip-fill" style="width:${threshold > 0 ? Math.round((entertainmentTime / threshold) * 100) : 0}%"></div>
+          <div class="forge-strip-fill" style="width:${entertainmentPct}%"></div>
         </div>
-        <span class="forge-strip-text">娱乐剩余 ${fmt(remaining)}</span>
+        <span class="forge-strip-text">娱乐余额 ${fmt(balance)} · 已娱乐 ${fmt(entertainmentTime)}</span>
       </div>` : ''}`;
   }
 
@@ -1091,8 +1092,8 @@ async function renderDashboardPanel(body: HTMLElement): Promise<void> {
   const state = await getState();
   const streak = getStreak(state);
   const history = getHistory(state, 7);
-  const threshold = getThreshold(state);
   const { workTime, entertainmentTime } = state.today;
+  const balance = Math.max(0, getEntertainmentBalance(state));
   const today = state.today.date;
 
   const ratioText = entertainmentTime > 0
@@ -1191,7 +1192,7 @@ async function renderDashboardPanel(body: HTMLElement): Promise<void> {
         </div>
         <div>
           <div class="panel-stat-label">余额</div>
-          <div class="panel-stat-value credit">${fmt(threshold)}</div>
+          <div class="panel-stat-value credit">${fmt(balance)}</div>
         </div>
         <div>
           <div class="panel-stat-label">工作/娱乐比</div>

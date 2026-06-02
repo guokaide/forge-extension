@@ -90,6 +90,8 @@ header h1 {
 }
 .summary-row strong { color: var(--accent-amber); font-weight: 500; }
 .unlocked .summary-row strong { color: var(--accent-sage); }
+.normal.low .summary-row { color: var(--accent-rose); }
+.normal.low .summary-row strong { color: var(--accent-rose); }
 
 .progress-track {
   height: 4px; margin-top: 7px; overflow: hidden;
@@ -97,7 +99,7 @@ header h1 {
 }
 .progress-track.locked { background: rgba(179, 90, 90, 0.12); }
 .progress-fill { height: 100%; background: var(--accent-rose); border-radius: 2px; }
-.progress-fill.amber { background: var(--accent-amber); }
+.progress-fill.play { background: var(--accent-rose); }
 .card-hint { margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
 footer {
