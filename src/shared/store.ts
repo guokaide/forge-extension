@@ -121,16 +121,12 @@ export async function saveState(state: ForgeState): Promise<void> {
   await chrome.storage.local.set({ forge: state });
 }
 
-export function getThreshold(state: ForgeState): number {
+function getThreshold(state: ForgeState): number {
   return Math.max(15, state.settings.baseThreshold - state.penalty);
 }
 
 export function getEntertainmentBalance(state: ForgeState): number {
   return getThreshold(state) + state.today.workTime - state.today.entertainmentTime;
-}
-
-export function getEntertainmentDebt(state: ForgeState): number {
-  return Math.max(0, 1 - getEntertainmentBalance(state));
 }
 
 export function getEntertainmentUsagePct(state: ForgeState): number {
@@ -151,7 +147,7 @@ export function reconcileLockState(state: ForgeState): void {
 }
 
 export function getUnlockWorkNeeded(state: ForgeState): number {
-  return getEntertainmentDebt(state);
+  return Math.max(0, 1 - getEntertainmentBalance(state));
 }
 
 export function getFullUnlockWorkRemaining(state: ForgeState): number {
@@ -197,6 +193,25 @@ export function getHistory(state: ForgeState, count: number = 7): DayData[] {
     }
   }
   return result;
+}
+
+export interface SettingsInput {
+  baseThreshold: number;
+  fullUnlockWork: number;
+  blockedSites: string[];
+}
+
+export async function applySettings(input: SettingsInput): Promise<ForgeState> {
+  const state = await getState();
+  if (input.baseThreshold >= 15 && input.baseThreshold <= 180)
+    state.settings.baseThreshold = input.baseThreshold;
+  if (input.fullUnlockWork >= 60 && input.fullUnlockWork <= 480)
+    state.settings.fullUnlockWork = input.fullUnlockWork;
+  state.settings.blockedSites = input.blockedSites;
+  reconcileLockState(state);
+  await saveState(state);
+  chrome.runtime.sendMessage({ type: 'stateChanged' });
+  return state;
 }
 
 export function getStreak(state: ForgeState): number {

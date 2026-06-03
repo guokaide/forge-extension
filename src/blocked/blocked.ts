@@ -1,10 +1,5 @@
 import { getState, getUnlockWorkNeeded, getFullUnlockWorkRemaining, getEntertainmentUsagePct } from '../shared/store.js';
-
-function fmt(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = Math.ceil(min % 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
+import { fmt } from '../shared/format.js';
 
 async function render() {
   const state = await getState();

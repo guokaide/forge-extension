@@ -1,23 +1,9 @@
-:root {
-  --ink: #1a1613;
-  --paper: #f8f5f0;
-  --warm-gray: #e8e2da;
-  --muted: #9a918a;
-  --card-bg: #fffdf9;
-  --accent-amber: #c8713a;
-  --accent-sage: #5a7a62;
-  --accent-rose: #b35a5a;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
+@import '../shared/base.css';
 
 body {
   width: 360px;
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-  background: var(--paper);
-  color: var(--ink);
-  -webkit-font-smoothing: antialiased;
 }
+body::before { display: none; }
 
 .container { padding: 18px; }
 
@@ -49,25 +35,23 @@ header h1 {
   height: 3px; background: var(--warm-gray);
 }
 .forge-card.locked::before { background: var(--accent-amber); }
-.forge-card.unlocked::before { background: var(--accent-sage); }
+.forge-card.unlocked::before { background: var(--accent-amber); }
 
 .card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.card-eyebrow {
-  color: var(--muted); font-size: 10px; font-weight: 600;
-  letter-spacing: 0.8px; text-transform: uppercase;
-}
 .hero-value {
   margin-top: 3px; color: var(--accent-amber);
   font-family: 'Newsreader', serif; font-size: 32px; font-weight: 300; line-height: 1;
 }
-.unlocked .hero-value { color: var(--accent-sage); }
+.unlocked .card-top { justify-content: flex-start; }
+.unlocked .hero-value { color: var(--accent-amber); }
+.unlocked .card-subtitle { font-style: italic; }
 .card-subtitle { margin-top: 4px; color: var(--muted); font-size: 11px; }
 
 .status-icon {
   width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; border-radius: 50%; font-size: 15px; font-weight: 600;
 }
-.status-icon.check { color: var(--accent-sage); background: rgba(90, 122, 98, 0.1); }
+.status-icon.check { color: var(--accent-amber); background: rgba(200, 113, 58, 0.1); }
 .status-icon.lock { color: var(--accent-rose); background: rgba(179, 90, 90, 0.1); }
 
 .progress-ring {
@@ -89,7 +73,7 @@ header h1 {
   margin-top: 16px; color: var(--muted); font-size: 11px;
 }
 .summary-row strong { color: var(--accent-amber); font-weight: 500; }
-.unlocked .summary-row strong { color: var(--accent-sage); }
+.unlocked .summary-row strong { color: var(--accent-amber); }
 .normal.low .summary-row { color: var(--accent-rose); }
 .normal.low .summary-row strong { color: var(--accent-rose); }
 
@@ -100,19 +84,19 @@ header h1 {
 .progress-track.locked { background: rgba(179, 90, 90, 0.12); }
 .progress-fill { height: 100%; background: var(--accent-rose); border-radius: 2px; }
 .progress-fill.play { background: var(--accent-rose); }
+.card-detail { margin-top: 6px; color: var(--muted); font-size: 11px; }
 .card-hint { margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+.forge-meta { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.forge-meta:empty { display: none; }
+.forge-meta-badge { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 3px; }
+.forge-meta-badge.streak { color: var(--accent-amber); background: rgba(200, 113, 58, 0.08); }
+.forge-meta-badge.penalty { color: var(--accent-rose); background: rgba(179, 90, 90, 0.08); }
 
 footer {
   margin-top: 14px; padding-top: 12px;
   border-top: 1px solid var(--warm-gray);
 }
-#footer {
-  margin-bottom: 8px; text-align: center; color: var(--muted); font-size: 11px;
-}
-.stat-streak { color: var(--accent-amber); }
-.stat-penalty { color: var(--accent-rose); }
-.stat-sep { color: var(--warm-gray); margin: 0 6px; }
-
 .nav { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .nav a, .nav span {
   color: var(--muted); font-size: 12px; text-decoration: none;

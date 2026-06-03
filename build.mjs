@@ -60,14 +60,11 @@ for (const size of [16, 48, 128]) {
 // --- Copy static files ---
 const staticFiles = [
   ['manifest.json', `${outdir}/manifest.json`],
+  ['src/shared/base.css', `${outdir}/shared/base.css`],
   ['src/popup/popup.html', `${outdir}/popup/popup.html`],
   ['src/popup/popup.css', `${outdir}/popup/popup.css`],
   ['src/blocked/blocked.html', `${outdir}/blocked/blocked.html`],
   ['src/blocked/blocked.css', `${outdir}/blocked/blocked.css`],
-  ['src/options/options.html', `${outdir}/options/options.html`],
-  ['src/options/options.css', `${outdir}/options/options.css`],
-  ['src/dashboard/dashboard.html', `${outdir}/dashboard/dashboard.html`],
-  ['src/dashboard/dashboard.css', `${outdir}/dashboard/dashboard.css`],
   ['src/newtab/newtab.html', `${outdir}/newtab/newtab.html`],
   ['src/newtab/newtab.css', `${outdir}/newtab/newtab.css`],
 ];
@@ -84,8 +81,6 @@ const options = {
     'src/background.ts',
     'src/popup/popup.ts',
     'src/blocked/blocked.ts',
-    'src/options/options.ts',
-    'src/dashboard/dashboard.ts',
     'src/newtab/newtab.ts',
   ],
   bundle: true,

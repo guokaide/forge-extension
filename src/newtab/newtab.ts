@@ -1,8 +1,9 @@
 import {
-  getState, getStreak, getHistory, saveState,
-  getUnlockWorkNeeded, getFullUnlockWorkRemaining, extractDomain, reconcileLockState,
+  getState, getStreak, getHistory,
+  getUnlockWorkNeeded, getFullUnlockWorkRemaining, extractDomain, applySettings,
   getEntertainmentBalance, getEntertainmentUsagePct,
 } from '../shared/store.js';
+import { fmt } from '../shared/format.js';
 
 // ================================================================
 // TYPES
@@ -37,18 +38,6 @@ let openTabs: TabInfo[] = [];
 let domainGroups: DomainGroup[] = [];
 
 // ================================================================
-// FORMAT HELPER
-// ================================================================
-
-function fmt(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = Math.ceil(min % 60);
-  if (h > 0 && m === 0) return `${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
-// ================================================================
 // CHROME TAB MANAGEMENT
 // ================================================================
 
@@ -60,7 +49,7 @@ async function fetchOpenTabs(): Promise<void> {
     openTabs = tabs.map(t => ({
       url: t.url || '',
       title: t.title || '',
-      isForgeTab: t.url === newtabUrl || t.url === 'chrome://newtab/',
+      isForgeTab: (t.url !== undefined && t.url.startsWith(newtabUrl)) || t.url === 'chrome://newtab/',
     }));
   } catch {
     openTabs = [];
@@ -145,7 +134,7 @@ async function closeForgeDupes(): Promise<void> {
   const allTabs = await chrome.tabs.query({});
   const currentWindow = await chrome.windows.getCurrent();
   const forgeTabs = allTabs.filter(t =>
-    t.url === newtabUrl || t.url === 'chrome://newtab/'
+    (t.url !== undefined && t.url.startsWith(newtabUrl)) || t.url === 'chrome://newtab/'
   );
   if (forgeTabs.length <= 1) return;
   const keep =
@@ -1251,20 +1240,13 @@ async function renderSettingsPanel(body: HTMLElement): Promise<void> {
     <button class="settings-save" id="panelSaveSettings">保存设置</button>`;
 
   document.getElementById('panelSaveSettings')!.addEventListener('click', async () => {
-    const freshState = await getState();
-    const thresholdVal = parseInt((document.getElementById('panelThreshold') as HTMLInputElement).value, 10);
-    const fullUnlockVal = parseInt((document.getElementById('panelFullUnlock') as HTMLInputElement).value, 10);
-    const sitesVal = [...new Set((document.getElementById('panelBlockedSites') as HTMLTextAreaElement).value
+    const threshold = parseInt((document.getElementById('panelThreshold') as HTMLInputElement).value, 10);
+    const fullUnlock = parseInt((document.getElementById('panelFullUnlock') as HTMLInputElement).value, 10);
+    const sites = [...new Set((document.getElementById('panelBlockedSites') as HTMLTextAreaElement).value
       .split('\n').map(extractDomain).filter(Boolean))];
 
-    if (thresholdVal >= 15 && thresholdVal <= 180) freshState.settings.baseThreshold = thresholdVal;
-    if (fullUnlockVal >= 60 && fullUnlockVal <= 480) freshState.settings.fullUnlockWork = fullUnlockVal;
-    freshState.settings.blockedSites = sitesVal;
-    reconcileLockState(freshState);
-
+    await applySettings({ baseThreshold: threshold, fullUnlockWork: fullUnlock, blockedSites: sites });
     dayUnlockedConfettiFired = false;
-    await saveState(freshState);
-    chrome.runtime.sendMessage({ type: 'stateChanged' });
     await renderForgeBar();
     showToast('设置已保存');
   });
@@ -1317,6 +1299,14 @@ async function init(): Promise<void> {
   await renderForgeBar();
   await renderTabManagement();
   setInterval(renderForgeBar, 1000);
+
+  if (location.hash === '#dashboard') openPanel('dashboard');
+  if (location.hash === '#settings') openPanel('settings');
+
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#dashboard') openPanel('dashboard');
+    else if (location.hash === '#settings') openPanel('settings');
+  });
 }
 
 init();

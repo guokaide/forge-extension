@@ -210,12 +210,6 @@ async function tick(): Promise<void> {
 
   const state = await getState();
 
-  if (state.today.dayUnlocked) {
-    await syncBlocking();
-    await updateBadge();
-    return;
-  }
-
   if (!tracking.browserFocused) {
     await addWorkTime(1);
   } else if (tracking.currentHost && isBlockedHost(tracking.currentHost, state.settings.blockedSites)) {
