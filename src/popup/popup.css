@@ -34,8 +34,8 @@ header h1 {
   content: ''; position: absolute; top: 0; left: 0; right: 0;
   height: 3px; background: var(--warm-gray);
 }
-.forge-card.locked::before { background: var(--accent-amber); }
-.forge-card.unlocked::before { background: var(--accent-amber); }
+.forge-card.locked::before { background: var(--warm-gray); }
+.forge-card.unlocked::before { background: var(--warm-gray); }
 
 .card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .hero-value {

@@ -114,7 +114,7 @@ header {
 }
 
 /* ---- Locked state ---- */
-.forge-bar[data-state="locked"]::before { background: var(--accent-amber); }
+.forge-bar[data-state="locked"]::before { background: var(--warm-gray); }
 
 .forge-lock-icon {
   width: 36px; height: 36px; flex-shrink: 0;
@@ -153,7 +153,7 @@ header {
 }
 
 /* ---- Unlocked state ---- */
-.forge-bar[data-state="unlocked"]::before { background: var(--accent-amber); }
+.forge-bar[data-state="unlocked"]::before { background: var(--warm-gray); }
 .forge-bar[data-state="unlocked"] .forge-unlock-icon svg { color: var(--accent-amber); }
 .forge-bar[data-state="unlocked"] .forge-hero-number { color: var(--accent-amber); }
 
