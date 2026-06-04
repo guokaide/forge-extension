@@ -13,7 +13,7 @@ async function render() {
   const fullUnlock = state.settings.fullUnlockWork;
 
   let metaHtml = '';
-  if (streak > 0) metaHtml += `<span class="forge-meta-badge streak">${streak} 天连续达标</span>`;
+  if (streak > 0) metaHtml += `<span class="forge-meta-badge streak">🔥 ${streak}天连续达标</span>`;
   if (state.penalty > 0) metaHtml += `<span class="forge-meta-badge penalty">惩罚 -${state.penalty}m</span>`;
 
   if (dayUnlocked) {
