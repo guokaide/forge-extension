@@ -30,5 +30,9 @@
   "options_page": "newtab/newtab.html#settings",
   "chrome_url_overrides": {
     "newtab": "newtab/newtab.html"
-  }
+  },
+  "web_accessible_resources": [{
+    "resources": ["blocked/blocked.html"],
+    "matches": ["<all_urls>"]
+  }]
 }

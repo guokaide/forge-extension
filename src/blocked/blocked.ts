@@ -1,5 +1,26 @@
-import { getState, getUnlockWorkNeeded, getFullUnlockWorkRemaining, getEntertainmentUsagePct } from '../shared/store.js';
+import { getState, getUnlockWorkNeeded, getFullUnlockWorkRemaining, getEntertainmentUsagePct, getStreak } from '../shared/store.js';
 import { fmt } from '../shared/format.js';
+
+const HEADLINES = [
+  '先去锻造吧',
+  '工作时间到了',
+  '磨炼出好钢',
+  '沉淀一下',
+  '专注当下',
+];
+
+const QUOTES = [
+  '千里之行，始于足下。',
+  '不积跬步，无以至千里。',
+  '业精于勤，荒于嬉。',
+  '天道酬勤。',
+  '宝剑锋从磨砺出，梅花香自苦寒来。',
+  '吾生也有涯，而知也无涯。',
+  '锲而不舍，金石可镂。',
+];
+
+const headline = HEADLINES[Math.floor(Math.random() * HEADLINES.length)];
+const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
 
 async function render() {
   const state = await getState();
@@ -7,10 +28,14 @@ async function render() {
   const unlockNeeded = getUnlockWorkNeeded(state);
   const fullRemaining = getFullUnlockWorkRemaining(state);
   const pct = getEntertainmentUsagePct(state);
+  const streak = getStreak(state);
 
   const $title = document.getElementById('title')!;
   const $msg = document.getElementById('message')!;
   const $progress = document.getElementById('progress')!;
+  const $statsRow = document.getElementById('statsRow')!;
+  const $quote = document.getElementById('quote')!;
+  const $accentBar = document.getElementById('accentBar')!;
 
   let blockedSite = '';
   try {
@@ -23,7 +48,18 @@ async function render() {
     try { if (referrer) blockedSite = new URL(referrer).hostname; } catch {}
   }
 
-  $title.textContent = '先去工作吧';
+  if (!state.today.locked) {
+    $accentBar.className = 'accent-bar unlocked';
+    $title.textContent = '已解锁';
+    $msg.textContent = '你可以继续浏览了';
+    $progress.innerHTML = '';
+    $statsRow.innerHTML = '';
+    $quote.textContent = '';
+    return;
+  }
+
+  $accentBar.className = 'accent-bar';
+  $title.textContent = headline;
 
   const siteInfo = blockedSite && state.today.siteTime[blockedSite]
     ? `你今天已在 ${blockedSite} 上花了 ${fmt(Math.floor(state.today.siteTime[blockedSite] / 60))}`
@@ -31,16 +67,29 @@ async function render() {
   $msg.textContent = siteInfo;
 
   $progress.innerHTML = `
-    <div class="progress-info">还需工作 ${fmt(unlockNeeded)} 解锁</div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-    <div class="progress-info sub">或工作满 ${fmt(state.settings.fullUnlockWork)} 解锁全天（还需 ${fmt(fullRemaining)}）</div>
+    <div class="progress-section">
+      <div class="progress-label">还需工作 ${fmt(unlockNeeded)} 解锁</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-sub">或工作满 ${fmt(state.settings.fullUnlockWork)} 解锁全天（还需 ${fmt(fullRemaining)}）</div>
+    </div>
   `;
 
-  if (!state.today.locked) {
-    $title.textContent = '已解锁';
-    $msg.textContent = '你可以继续浏览了';
-    $progress.innerHTML = '';
-  }
+  $statsRow.innerHTML = `
+    <div class="stat">
+      <div class="stat-value work">${fmt(workTime)}</div>
+      <div class="stat-label">工作</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value play">${fmt(entertainmentTime)}</div>
+      <div class="stat-label">娱乐</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value streak">${streak > 0 ? '🔥 ' : ''}${streak}</div>
+      <div class="stat-label">连续天数</div>
+    </div>
+  `;
+
+  $quote.textContent = `"${quote}"`;
 }
 
 document.getElementById('btn-back')!.addEventListener('click', () => history.back());
