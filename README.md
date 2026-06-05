@@ -1,82 +1,133 @@
-# Forge Extension
+# Forge
 
-Forge 是一个 Chrome Manifest V3 扩展，用「工作赚取娱乐时间」的方式帮助管理注意力。
+**Earn your screen time.**
 
-它会统计今天的工作时长和娱乐网站用时，并根据娱乐余额决定是否锁定黑名单网站。核心规则是：
+Forge is a Chrome extension that tracks your work and entertainment time, then blocks entertainment sites when your balance runs out. Work more, play more. Simple as that.
 
-```text
-娱乐余额 = 今日免费额度 + 今日工作时间 - 今日娱乐时间
+No server. No account. No external API calls. Just a Chrome extension.
+
+---
+
+## How it works
+
+```
+You browse normally
+  -> Forge silently tracks work time vs entertainment time
+  -> You start each day with a free entertainment allowance (default: 60 min)
+  -> Every minute of work earns another minute of entertainment
+  -> When your balance hits zero, entertainment sites get blocked
+  -> Work a bit more to unlock, or hit 3 hours of work to unlock the whole day
 ```
 
-当今天已经产生娱乐用时、没有达成全天解锁，并且娱乐余额小于等于 0 时，Forge 会锁定黑名单网站。
+The core formula:
 
-## 功能
+```
+Entertainment balance = free allowance + work time - entertainment time
+```
 
-- 新标签页：展示今日工作进度、娱乐余额、打开的标签页分组，以及统计和设置入口。
-- Popup：点击扩展图标后查看今日状态、娱乐余额和快捷入口。
-- 统计页：查看今日概览、最近 7 天记录和今日网站用时。
-- 设置页：配置娱乐网站黑名单、基础免费额度和全天解锁所需工作时长。
-- 锁定页：娱乐网站被锁定后显示解锁所需工作时间。
+Everything runs inside the Chrome extension. No external server, no data sent anywhere.
 
-## 安装和使用
+---
 
-先安装依赖并构建：
+## Install with a coding agent
+
+Send your coding agent (Claude Code, Codex, etc.) this repo and say **"install this"**:
+
+```
+https://github.com/guokaide/forge-extension
+```
+
+The agent will clone it, run `npm install && npm run build`, and walk you through loading it in Chrome. Takes about 1 minute.
+
+---
+
+## Manual setup
+
+**1. Clone and build**
 
 ```bash
+git clone https://github.com/guokaide/forge-extension.git
+cd forge-extension
 npm install
 npm run build
 ```
 
-然后在 Chrome 中加载扩展：
+**2. Load the Chrome extension**
 
-1. 打开 `chrome://extensions/`。
-2. 打开右上角「开发者模式」。
-3. 点击「加载已解压的扩展程序」。
-4. 选择本项目的 `dist/` 目录。
+1. Open Chrome and go to `chrome://extensions`
+2. Enable **Developer mode** (top-right toggle)
+3. Click **Load unpacked**
+4. Navigate to the `dist/` folder inside the cloned repo and select it
 
-开发时可以使用：
+**3. Open a new tab**
+
+You'll see Forge.
+
+---
+
+## Features
+
+- **New tab dashboard** shows today's work progress, entertainment balance, and open tabs at a glance
+- **Automatic time tracking** counts work minutes when you're on non-entertainment sites (or when the browser is in the background)
+- **Smart blocking** redirects entertainment sites to a motivational lock screen when balance runs out
+- **Full-day unlock** hit 3 hours of work and all blocks are cleared for the day
+- **Streak tracking** see how many consecutive days you've hit your work goal
+- **Daily penalty** skip your work goal yesterday? Today's free allowance shrinks
+- **Per-site breakdown** see exactly how much time you spent on each domain
+- **7-day history** track your work and entertainment trends over the past week
+- **Customizable** set your own entertainment allowance, work goal, and blocked sites
+- **100% local** your data never leaves your machine
+
+---
+
+## Pages
+
+| Page | What it does |
+|------|-------------|
+| New tab | Daily dashboard with progress, balance, and open tabs |
+| Popup | Quick status view when you click the extension icon |
+| Dashboard | 7-day history and per-site time breakdown |
+| Settings | Configure blocked sites, allowance, and work goal |
+| Blocked | Motivational lock screen with stats and progress |
+
+---
+
+## Tech stack
+
+| What | How |
+|------|-----|
+| Extension | Chrome Manifest V3 |
+| Language | TypeScript |
+| Bundler | esbuild (IIFE for Chrome 120+) |
+| Storage | chrome.storage.local + chrome.storage.session |
+| Blocking | declarativeNetRequest (redirect rules) |
+| Time tracking | chrome.alarms + chrome.idle + chrome.tabs |
+
+---
+
+## Development
 
 ```bash
-npm run dev
+npm run dev          # watch mode with auto-rebuild
 ```
 
-这个命令会监听源码变化并重新生成 `dist/`。
-
-## 项目结构
-
-```text
-.
-├── manifest.json          # Chrome MV3 扩展配置
-├── build.mjs              # 构建脚本，生成 dist/
-├── src/
-│   ├── background.ts      # 后台计时、锁定、badge 和 tab 监听
-│   ├── shared/            # 类型、状态存储和核心业务逻辑
-│   ├── newtab/            # 新标签页
-│   ├── popup/             # 扩展图标 popup
-│   ├── dashboard/         # 独立统计页
-│   ├── options/           # 独立设置页
-│   └── blocked/           # 黑名单锁定提示页
-└── dist/                  # 构建产物，Chrome 加载此目录
-```
-
-## 核心逻辑
-
-- 工作时长：不在黑名单网站上浏览时累计（包括浏览器失焦但用户未闲置的时间）。
-- 娱乐时长：访问黑名单网站时累计。
-- 今日免费额度：基础免费额度扣除惩罚后得到，最低 15 分钟。
-- 娱乐余额：今日免费额度加今日工作时长，再减今日娱乐时长。
-- 黑名单锁定：当天已有娱乐用时且娱乐余额小于等于 0 时锁定娱乐网站。
-- 全天解锁：今日工作时长达到设置值后，当天不再锁定娱乐网站。
-- 今日统计：按本地日期切换新的一天，并保存每日历史记录。
-
-核心实现主要在 `src/shared/store.ts` 和 `src/background.ts`。
-
-## 常用检查
-
-修改代码后建议运行：
+After changes:
 
 ```bash
-npm exec --yes --package=typescript -- tsc --noEmit
-npm run build
-git diff --check
+npx tsc --noEmit     # type check
+npm run build        # production build
 ```
+
+No test framework — verification is type checking + manual testing in Chrome.
+
+---
+
+## Acknowledgments
+
+The open tabs feature on the new tab page is built on code from [Tab Out](https://github.com/zarazhangrui/tab-out) by [Zara](https://x.com/zarazhangrui). Thanks for the great work.
+
+---
+
+## License
+
+MIT
