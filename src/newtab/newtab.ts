@@ -536,11 +536,12 @@ function buildOverflowChips(hiddenTabs: TabInfo[], urlCounts: Record<string, num
 // DOMAIN CARD RENDERER
 // ================================================================
 
-function renderDomainCard(group: DomainGroup): string {
+function renderDomainCard(group: DomainGroup, cardIndex = 0): string {
   const tabs = group.tabs || [];
   const tabCount = tabs.length;
   const isLanding = group.domain === '__landing-pages__';
   const stableId = 'domain-' + group.domain.replace(/[^a-z0-9]/g, '-');
+  const entryDelay = Math.min(0.25 + cardIndex * 0.05, 0.65);
 
   const urlCounts: Record<string, number> = {};
   for (const tab of tabs) urlCounts[tab.url] = (urlCounts[tab.url] || 0) + 1;
@@ -602,7 +603,7 @@ function renderDomainCard(group: DomainGroup): string {
   }
 
   return `
-    <div class="mission-card domain-card ${hasDupes ? 'has-amber-bar' : 'has-neutral-bar'}" data-domain-id="${stableId}">
+    <div class="mission-card domain-card ${hasDupes ? 'has-amber-bar' : 'has-neutral-bar'}" data-domain-id="${stableId}" style="--card-entry-delay:${entryDelay}s">
       <div class="mission-content">
         <div class="mission-top">
           <span class="mission-name">${isLanding ? 'Homepages' : escapeHtml(friendlyDomain(group.domain))}</span>
@@ -866,7 +867,7 @@ async function renderTabManagement(): Promise<void> {
 
   if (domainGroups.length > 0 && openTabsSection) {
     openTabsSectionCount!.innerHTML = `${domainGroups.length} domain${domainGroups.length !== 1 ? 's' : ''} &nbsp;&middot;&nbsp; ${openTabs.length} open tabs &nbsp;&middot;&nbsp; <button class="action-btn close-tabs" data-action="close-all-open-tabs" style="font-size:11px;padding:3px 10px;">${ICONS.close} Close all ${realTabs.length} tabs</button>`;
-    openTabsMissionsEl!.innerHTML = domainGroups.map(g => renderDomainCard(g)).join('');
+    openTabsMissionsEl!.innerHTML = domainGroups.map((g, index) => renderDomainCard(g, index)).join('');
     openTabsSection.style.display = 'block';
   } else if (openTabsSection) {
     openTabsSection.style.display = 'none';
