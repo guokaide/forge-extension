@@ -1,4 +1,4 @@
-import { getState, getUnlockWorkNeeded, getFullUnlockWorkRemaining, getEntertainmentUsagePct, getStreak } from '../shared/store.js';
+import { getState, getUnlockWorkNeeded, getFullUnlockWorkRemaining, getStreak } from '../shared/store.js';
 import { fmt } from '../shared/format.js';
 
 const HEADLINES = [
@@ -27,7 +27,9 @@ async function render() {
   const { entertainmentTime, workTime } = state.today;
   const unlockNeeded = getUnlockWorkNeeded(state);
   const fullRemaining = getFullUnlockWorkRemaining(state);
-  const pct = getEntertainmentUsagePct(state);
+  const workPct = state.settings.fullUnlockWork > 0
+    ? Math.round(Math.min(workTime / state.settings.fullUnlockWork, 1) * 100)
+    : 0;
   const streak = getStreak(state);
 
   const $title = document.getElementById('title')!;
@@ -69,7 +71,7 @@ async function render() {
   $progress.innerHTML = `
     <div class="progress-section">
       <div class="progress-label">还需工作 ${fmt(unlockNeeded)} 解锁</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${workPct}%"></div></div>
       <div class="progress-sub">或工作满 ${fmt(state.settings.fullUnlockWork)} 解锁全天（还需 ${fmt(fullRemaining)}）</div>
     </div>
   `;

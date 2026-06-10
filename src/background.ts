@@ -8,25 +8,44 @@ import {
 
 async function enableBlocking(): Promise<void> {
   const state = await getState();
+  const sites = state.settings.blockedSites;
   const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
   const existingIds = existingRules.map(r => r.id);
 
-  const rules: chrome.declarativeNetRequest.Rule[] = state.settings.blockedSites.map((site, i) => ({
-    id: i + 1,
-    priority: 1,
-    action: {
-      type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-      redirect: { extensionPath: '/blocked/blocked.html' },
-    },
-    condition: {
-      urlFilter: `||${site}`,
-      resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
-    },
-  }));
+  if (sites.length === 0) {
+    if (existingIds.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: existingIds });
+    }
+    return;
+  }
+
+  const redirectTarget = chrome.runtime.getURL('blocked/blocked.html') + '?from=\\1';
+
+  // Called every tick while locked — skip the rewrite when rules already match
+  const current = existingRules.length === 1 ? existingRules[0] : undefined;
+  if (
+    current &&
+    current.action.redirect?.regexSubstitution === redirectTarget &&
+    JSON.stringify(current.condition.requestDomains) === JSON.stringify(sites)
+  ) {
+    return;
+  }
 
   await chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: existingIds,
-    addRules: rules,
+    addRules: [{
+      id: 1,
+      priority: 1,
+      action: {
+        type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+        redirect: { regexSubstitution: redirectTarget },
+      },
+      condition: {
+        regexFilter: '^(https?://.+)',
+        requestDomains: sites,
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+      },
+    }],
   });
 }
 

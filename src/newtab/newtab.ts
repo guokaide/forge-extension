@@ -195,6 +195,22 @@ async function dismissSavedTab(id: string): Promise<void> {
 // UI HELPERS
 // ================================================================
 
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+};
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => HTML_ESCAPES[c]);
+}
+
+function faviconSrc(pageUrl: string): string {
+  if (!pageUrl) return '';
+  const u = new URL(chrome.runtime.getURL('/_favicon/'));
+  u.searchParams.set('pageUrl', pageUrl);
+  u.searchParams.set('size', '16');
+  return u.toString();
+}
+
 function playCloseSound(): void {
   try {
     const ctx = new AudioContext();
@@ -492,14 +508,12 @@ function buildOverflowChips(hiddenTabs: TabInfo[], urlCounts: Record<string, num
     const count = urlCounts[tab.url] || 1;
     const dupeTag = count > 1 ? ` <span class="chip-dupe-badge">(${count}x)</span>` : '';
     const chipClass = count > 1 ? ' chip-has-dupes' : '';
-    const safeUrl = (tab.url || '').replace(/"/g, '&quot;');
-    const safeTitle = label.replace(/"/g, '&quot;');
-    let domain = '';
-    try { domain = new URL(tab.url).hostname; } catch {}
-    const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
+    const safeUrl = escapeHtml(tab.url || '');
+    const safeTitle = escapeHtml(label);
+    const faviconUrl = faviconSrc(tab.url);
     return `<div class="page-chip clickable${chipClass}" data-action="focus-tab" data-tab-url="${safeUrl}" title="${safeTitle}">
-      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
-      <span class="chip-text">${label}</span>${dupeTag}
+      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" data-favicon>` : ''}
+      <span class="chip-text">${safeTitle}</span>${dupeTag}
       <div class="chip-actions">
         <button class="chip-action chip-save" data-action="defer-single-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="Save for later">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" /></svg>
@@ -557,14 +571,12 @@ function renderDomainCard(group: DomainGroup): string {
     const count = urlCounts[tab.url];
     const dupeTag = count > 1 ? ` <span class="chip-dupe-badge">(${count}x)</span>` : '';
     const chipClass = count > 1 ? ' chip-has-dupes' : '';
-    const safeUrl = (tab.url || '').replace(/"/g, '&quot;');
-    const safeTitle = label.replace(/"/g, '&quot;');
-    let domain = '';
-    try { domain = new URL(tab.url).hostname; } catch {}
-    const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
+    const safeUrl = escapeHtml(tab.url || '');
+    const safeTitle = escapeHtml(label);
+    const faviconUrl = faviconSrc(tab.url);
     return `<div class="page-chip clickable${chipClass}" data-action="focus-tab" data-tab-url="${safeUrl}" title="${safeTitle}">
-      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
-      <span class="chip-text">${label}</span>${dupeTag}
+      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" data-favicon>` : ''}
+      <span class="chip-text">${safeTitle}</span>${dupeTag}
       <div class="chip-actions">
         <button class="chip-action chip-save" data-action="defer-single-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="Save for later">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" /></svg>
@@ -593,7 +605,7 @@ function renderDomainCard(group: DomainGroup): string {
     <div class="mission-card domain-card ${hasDupes ? 'has-amber-bar' : 'has-neutral-bar'}" data-domain-id="${stableId}">
       <div class="mission-content">
         <div class="mission-top">
-          <span class="mission-name">${isLanding ? 'Homepages' : friendlyDomain(group.domain)}</span>
+          <span class="mission-name">${isLanding ? 'Homepages' : escapeHtml(friendlyDomain(group.domain))}</span>
           ${tabBadge}
           ${dupeBadge}
         </div>
@@ -610,16 +622,16 @@ function renderDomainCard(group: DomainGroup): string {
 function renderDeferredItem(item: DeferredTab): string {
   let domain = '';
   try { domain = new URL(item.url).hostname.replace(/^www\./, ''); } catch {}
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+  const faviconUrl = faviconSrc(item.url);
   const ago = timeAgo(item.savedAt);
   return `
     <div class="deferred-item" data-deferred-id="${item.id}">
       <input type="checkbox" class="deferred-checkbox" data-action="check-deferred" data-deferred-id="${item.id}">
       <div class="deferred-info">
-        <a href="${item.url}" target="_blank" rel="noopener" class="deferred-title" title="${(item.title || '').replace(/"/g, '&quot;')}">
-          <img src="${faviconUrl}" alt="" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px" onerror="this.style.display='none'">${item.title || item.url}
+        <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" class="deferred-title" title="${escapeHtml(item.title || '')}">
+          <img src="${faviconUrl}" alt="" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px" data-favicon>${escapeHtml(item.title || item.url)}
         </a>
-        <div class="deferred-meta"><span>${domain}</span><span>${ago}</span></div>
+        <div class="deferred-meta"><span>${escapeHtml(domain)}</span><span>${ago}</span></div>
       </div>
       <button class="deferred-dismiss" data-action="dismiss-deferred" data-deferred-id="${item.id}" title="Dismiss">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
@@ -631,7 +643,7 @@ function renderArchiveItem(item: DeferredTab): string {
   const ago = item.completedAt ? timeAgo(item.completedAt) : timeAgo(item.savedAt);
   return `
     <div class="archive-item">
-      <a href="${item.url}" target="_blank" rel="noopener" class="archive-item-title" title="${(item.title || '').replace(/"/g, '&quot;')}">${item.title || item.url}</a>
+      <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" class="archive-item-title" title="${escapeHtml(item.title || '')}">${escapeHtml(item.title || item.url)}</a>
       <span class="archive-item-date">${ago}</span>
     </div>`;
 }
@@ -719,7 +731,7 @@ async function renderForgeBar(): Promise<void> {
     $headerCount.textContent = '已锁定';
     const unlockNeeded = getUnlockWorkNeeded(state);
     const fullRemaining = getFullUnlockWorkRemaining(state);
-    const pct = getEntertainmentUsagePct(state);
+    const workPct = fullUnlock > 0 ? Math.round(Math.min(workTime / fullUnlock, 1) * 100) : 0;
 
     $status.innerHTML = `
       <div class="forge-main-row">
@@ -731,7 +743,7 @@ async function renderForgeBar(): Promise<void> {
         <div class="forge-work-display" style="flex:1">
           <span class="forge-tag play">娱乐已锁定</span>
           <div class="forge-progress">
-            <div class="forge-progress-track locked"><div class="forge-progress-fill" style="width:${pct}%"></div></div>
+            <div class="forge-progress-track locked"><div class="forge-progress-fill" style="width:${workPct}%"></div></div>
             <span class="forge-progress-label">还需工作 ${fmt(unlockNeeded)}</span>
           </div>
           <div class="forge-hint">或工作满 ${fmt(fullUnlock)} 解锁全天（还需 ${fmt(fullRemaining)}）</div>
@@ -867,6 +879,14 @@ async function renderTabManagement(): Promise<void> {
 // ================================================================
 // EVENT HANDLERS
 // ================================================================
+
+// MV3 CSP forbids inline onerror handlers; hide broken favicons via capture-phase listener
+document.addEventListener('error', (e) => {
+  const target = e.target;
+  if (target instanceof HTMLImageElement && target.hasAttribute('data-favicon')) {
+    target.style.display = 'none';
+  }
+}, true);
 
 document.addEventListener('click', async (e) => {
   const target = e.target as HTMLElement;
@@ -1144,7 +1164,7 @@ async function renderDashboardPanel(body: HTMLElement): Promise<void> {
       const pct = Math.round((sec / maxSec) * 100);
       return `
         <div class="panel-site-row">
-          <span class="panel-site-host">${host}</span>
+          <span class="panel-site-host">${escapeHtml(host)}</span>
           <span class="panel-site-duration">${duration}</span>
           <div class="panel-site-bar-bg"><div class="panel-site-bar-fill" style="width:${pct}%"></div></div>
         </div>`;
@@ -1234,7 +1254,7 @@ async function renderSettingsPanel(body: HTMLElement): Promise<void> {
     <div class="settings-section">
       <div class="section-header" style="margin-bottom:6px"><h2>娱乐网站黑名单</h2><div class="section-line"></div></div>
       <div class="settings-desc">每行一个域名，例如 bilibili.com</div>
-      <textarea class="settings-textarea" id="panelBlockedSites" rows="10">${state.settings.blockedSites.join('\n')}</textarea>
+      <textarea class="settings-textarea" id="panelBlockedSites" rows="10">${escapeHtml(state.settings.blockedSites.join('\n'))}</textarea>
     </div>
 
     <button class="settings-save" id="panelSaveSettings">保存设置</button>`;
@@ -1298,7 +1318,11 @@ async function init(): Promise<void> {
   document.getElementById('dateDisplay')!.textContent = getDateDisplay();
   await renderForgeBar();
   await renderTabManagement();
-  setInterval(renderForgeBar, 1000);
+  // State only changes via storage writes; 60s fallback covers midnight rollover while idle
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.forge) void renderForgeBar();
+  });
+  setInterval(renderForgeBar, 60_000);
 
   if (location.hash === '#dashboard') openPanel('dashboard');
   if (location.hash === '#settings') openPanel('settings');

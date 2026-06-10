@@ -25,6 +25,8 @@ The core formula:
 Entertainment balance = free allowance + work time - entertainment time
 ```
 
+**What counts as work?** Any non-idle minute where your active tab isn't on a blocked site. Browsing non-blocked sites and time spent outside the browser (until you've been idle for 10 minutes) both count as work. This is generous by design — Forge is a self-discipline aid, not surveillance — and note that nothing accrues while Chrome isn't running.
+
 Everything runs inside the Chrome extension. No external server, no data sent anywhere.
 
 ---

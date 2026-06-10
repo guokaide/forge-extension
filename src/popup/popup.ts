@@ -31,7 +31,7 @@ async function render() {
   } else if (locked) {
     const unlockNeeded = getUnlockWorkNeeded(state);
     const fullRemaining = getFullUnlockWorkRemaining(state);
-    const pct = getEntertainmentUsagePct(state);
+    const workPct = fullUnlock > 0 ? Math.round(Math.min(workTime / fullUnlock, 1) * 100) : 0;
 
     $status.innerHTML = `
       <div class="forge-card locked">
@@ -43,10 +43,10 @@ async function render() {
           </div>
         </div>
         <div class="summary-row">
-          <span>解锁进度</span>
-          <strong>${pct}%</strong>
+          <span>全天解锁进度</span>
+          <strong>${workPct}%</strong>
         </div>
-        <div class="progress-track locked"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="progress-track locked"><div class="progress-fill" style="width:${workPct}%"></div></div>
         <div class="card-hint">或工作满 ${fmt(fullUnlock)} 解锁全天，还需 ${fmt(fullRemaining)}</div>
         <div class="forge-meta">${metaHtml}</div>
       </div>`;
@@ -98,4 +98,7 @@ document.getElementById('nav-dashboard')!.addEventListener('click', () => openNe
 document.getElementById('nav-options')!.addEventListener('click', () => openNewtabPanel('settings'));
 
 render();
-setInterval(render, 1000);
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.forge) void render();
+});
+setInterval(render, 60_000);
