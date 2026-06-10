@@ -12,7 +12,7 @@ entertainmentBalance = currentThreshold + today.workTime - today.entertainmentTi
 
 When the balance hits zero (and entertainment time has been used today, and full-day unlock is not active), blocked sites are redirected to a lock screen. Full-day unlock activates when `today.workTime >= settings.fullUnlockWork`, clearing all blocks for the day.
 
-**Time attribution (intentional design tradeoff):** every non-idle tick counts as work unless the active tab is on a blocked site. Time outside the browser (up to the 10-minute idle threshold) and time on non-blocked sites both count as work. This is generous by design — Forge is a self-discipline aid, not surveillance, so ambiguity favors the user. Nothing accrues while Chrome is not running. Do not "fix" this by adding a work-site whitelist without an explicit product decision.
+**Time attribution (intentional design tradeoff):** every non-idle tick counts as work unless the active tab is on a blocked site. Time outside the browser (up to the 10-minute idle threshold) and time on non-blocked sites both count as work. One exception to idle: when the active tab is a blocked site that is audibly playing media, ticks count as entertainment even while the user is input-idle (passive watching is real usage). This is generous by design — Forge is a self-discipline aid, not surveillance, so ambiguity favors the user. Nothing accrues while Chrome is not running. Do not "fix" this by adding a work-site whitelist without an explicit product decision.
 
 ## Build & Verify
 

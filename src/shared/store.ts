@@ -111,8 +111,19 @@ export function extractDomain(input: string): string {
     const hostname = new URL(s.includes('://') ? s : `https://${s}`).hostname;
     return hostname.replace(/^www\./, '');
   } catch {
-    return s;
+    // Unparseable input would invalidate the whole DNR rule; drop it
+    return '';
   }
+}
+
+// Mutations are read-modify-write over the whole `forge` key; serialize them
+// within this JS context so tick and event-driven writes can't clobber each other.
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const run = writeQueue.catch(() => undefined).then(fn);
+  writeQueue = run.then(() => undefined, () => undefined);
+  return run;
 }
 
 export async function saveState(state: ForgeState): Promise<void> {
@@ -154,30 +165,36 @@ export function getFullUnlockWorkRemaining(state: ForgeState): number {
   return Math.max(0, state.settings.fullUnlockWork - state.today.workTime);
 }
 
-export async function addEntertainmentTime(minutes: number): Promise<ForgeState> {
-  const state = await getState();
-  state.today.entertainmentTime += minutes;
-  reconcileLockState(state);
-  await saveState(state);
-  return state;
+export function addEntertainmentTime(minutes: number): Promise<ForgeState> {
+  return enqueueWrite(async () => {
+    const state = await getState();
+    state.today.entertainmentTime += minutes;
+    reconcileLockState(state);
+    await saveState(state);
+    return state;
+  });
 }
 
-export async function addWorkTime(minutes: number): Promise<ForgeState> {
-  const state = await getState();
-  state.today.workTime += minutes;
-  reconcileLockState(state);
-  await saveState(state);
-  return state;
+export function addWorkTime(minutes: number): Promise<ForgeState> {
+  return enqueueWrite(async () => {
+    const state = await getState();
+    state.today.workTime += minutes;
+    reconcileLockState(state);
+    await saveState(state);
+    return state;
+  });
 }
 
-export async function addSiteTime(hostname: string, seconds: number, date: string = getDateKey()): Promise<void> {
-  if (seconds <= 0) return;
-  const state = await getState();
-  const day = date === state.today.date ? state.today : state.days[date];
-  if (!day) return;
-  if (!day.siteTime) day.siteTime = {};
-  day.siteTime[hostname] = (day.siteTime[hostname] || 0) + seconds;
-  await saveState(state);
+export function addSiteTime(hostname: string, seconds: number, date: string = getDateKey()): Promise<void> {
+  if (seconds <= 0) return Promise.resolve();
+  return enqueueWrite(async () => {
+    const state = await getState();
+    const day = date === state.today.date ? state.today : state.days[date];
+    if (!day) return;
+    if (!day.siteTime) day.siteTime = {};
+    day.siteTime[hostname] = (day.siteTime[hostname] || 0) + seconds;
+    await saveState(state);
+  });
 }
 
 export function getHistory(state: ForgeState, count: number = 7): DayData[] {
@@ -202,14 +219,17 @@ export interface SettingsInput {
 }
 
 export async function applySettings(input: SettingsInput): Promise<ForgeState> {
-  const state = await getState();
-  if (input.baseThreshold >= 15 && input.baseThreshold <= 180)
-    state.settings.baseThreshold = input.baseThreshold;
-  if (input.fullUnlockWork >= 60 && input.fullUnlockWork <= 480)
-    state.settings.fullUnlockWork = input.fullUnlockWork;
-  state.settings.blockedSites = input.blockedSites;
-  reconcileLockState(state);
-  await saveState(state);
+  const state = await enqueueWrite(async () => {
+    const s = await getState();
+    if (input.baseThreshold >= 15 && input.baseThreshold <= 180)
+      s.settings.baseThreshold = input.baseThreshold;
+    if (input.fullUnlockWork >= 60 && input.fullUnlockWork <= 480)
+      s.settings.fullUnlockWork = input.fullUnlockWork;
+    s.settings.blockedSites = input.blockedSites;
+    reconcileLockState(s);
+    await saveState(s);
+    return s;
+  });
   chrome.runtime.sendMessage({ type: 'stateChanged' });
   return state;
 }

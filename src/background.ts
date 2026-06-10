@@ -31,22 +31,27 @@ async function enableBlocking(): Promise<void> {
     return;
   }
 
-  await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: existingIds,
-    addRules: [{
-      id: 1,
-      priority: 1,
-      action: {
-        type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-        redirect: { regexSubstitution: redirectTarget },
-      },
-      condition: {
-        regexFilter: '^(https?://.+)',
-        requestDomains: sites,
-        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
-      },
-    }],
-  });
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: existingIds,
+      addRules: [{
+        id: 1,
+        priority: 1,
+        action: {
+          type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+          redirect: { regexSubstitution: redirectTarget },
+        },
+        condition: {
+          regexFilter: '^(https?://.+)',
+          requestDomains: sites,
+          resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        },
+      }],
+    });
+  } catch (err) {
+    // A single bad domain rejects the whole rule; keep old rules rather than block nothing
+    console.error('Forge: failed to update blocking rules', err);
+  }
 }
 
 async function disableBlocking(): Promise<void> {
@@ -57,10 +62,25 @@ async function disableBlocking(): Promise<void> {
   }
 }
 
+// DNR only intercepts new main_frame requests; already-open tabs (and SPA
+// in-site navigation) would survive the lock, so push them to the lock screen.
+async function redirectOpenBlockedTabs(sites: string[]): Promise<void> {
+  const tabs = await chrome.tabs.query({});
+  for (const tab of tabs) {
+    if (tab.id === undefined || !tab.url) continue;
+    let host: string;
+    try { host = new URL(tab.url).hostname; } catch { continue; }
+    if (!isBlockedHost(host, sites)) continue;
+    const target = chrome.runtime.getURL('blocked/blocked.html') + '?from=' + encodeURIComponent(tab.url);
+    try { await chrome.tabs.update(tab.id, { url: target }); } catch {}
+  }
+}
+
 async function syncBlocking(): Promise<void> {
   const state = await getState();
   if (state.today.locked) {
     await enableBlocking();
+    await redirectOpenBlockedTabs(state.settings.blockedSites);
   } else {
     await disableBlocking();
   }
@@ -97,6 +117,7 @@ async function updateBadge(): Promise<void> {
 interface SiteTrackingState {
   currentHost: string | null;
   browserFocused: boolean;
+  audible: boolean;
   userIdle: boolean;
   lastTick: number;
 }
@@ -121,6 +142,7 @@ function freshTrackingState(): SiteTrackingState {
   return {
     currentHost: null,
     browserFocused: false,
+    audible: false,
     userIdle: false,
     lastTick: Date.now(),
   };
@@ -133,6 +155,7 @@ async function getTrackingState(): Promise<SiteTrackingState> {
   return {
     currentHost: typeof tracking.currentHost === 'string' ? tracking.currentHost : null,
     browserFocused: tracking.browserFocused === true,
+    audible: tracking.audible === true,
     userIdle: tracking.userIdle === true,
     lastTick: tracking.lastTick,
   };
@@ -156,22 +179,24 @@ async function addSiteInterval(hostname: string, startedAt: number, endedAt: num
 }
 
 async function flushSiteTime(tracking: SiteTrackingState, now: number = Date.now()): Promise<void> {
-  if (tracking.currentHost && tracking.browserFocused && !tracking.userIdle && now > tracking.lastTick) {
+  // audible overrides idle: watching/listening produces no input but is real usage
+  const active = !tracking.userIdle || tracking.audible;
+  if (tracking.currentHost && tracking.browserFocused && active && now > tracking.lastTick) {
     await addSiteInterval(tracking.currentHost, tracking.lastTick, now);
   }
   tracking.lastTick = now;
 }
 
-async function getBrowserActivity(): Promise<{ browserFocused: boolean; currentHost: string | null }> {
+async function getBrowserActivity(): Promise<{ browserFocused: boolean; currentHost: string | null; audible: boolean }> {
   try {
     const window = await chrome.windows.getLastFocused();
     if (!window.focused || window.id === undefined) {
-      return { browserFocused: false, currentHost: null };
+      return { browserFocused: false, currentHost: null, audible: false };
     }
     const [tab] = await chrome.tabs.query({ active: true, windowId: window.id });
-    return { browserFocused: true, currentHost: extractHost(tab?.url) };
+    return { browserFocused: true, currentHost: extractHost(tab?.url), audible: tab?.audible === true };
   } catch {
-    return { browserFocused: false, currentHost: null };
+    return { browserFocused: false, currentHost: null, audible: false };
   }
 }
 
@@ -182,6 +207,7 @@ async function syncActivityNow(idleState?: chrome.idle.IdleState): Promise<SiteT
   const activity = await getBrowserActivity();
   tracking.browserFocused = activity.browserFocused;
   tracking.currentHost = activity.currentHost;
+  tracking.audible = activity.audible;
   tracking.userIdle = idleState
     ? idleState !== 'active'
     : await chrome.idle.queryState(600) !== 'active';
@@ -221,17 +247,20 @@ chrome.idle.onStateChanged.addListener((newState) => {
 
 async function tick(): Promise<void> {
   const tracking = await syncActivity();
+  const state = await getState();
 
-  if (tracking.userIdle) {
+  const onBlockedSite =
+    tracking.browserFocused &&
+    tracking.currentHost !== null &&
+    isBlockedHost(tracking.currentHost, state.settings.blockedSites);
+
+  // audible overrides idle: passively watching a blocked site is entertainment
+  if (tracking.userIdle && !(onBlockedSite && tracking.audible)) {
     await updateBadge();
     return;
   }
 
-  const state = await getState();
-
-  if (!tracking.browserFocused) {
-    await addWorkTime(1);
-  } else if (tracking.currentHost && isBlockedHost(tracking.currentHost, state.settings.blockedSites)) {
+  if (onBlockedSite) {
     await addEntertainmentTime(1);
   } else {
     await addWorkTime(1);
